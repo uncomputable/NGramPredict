@@ -1,0 +1,8 @@
+# Ignore everything
+/*
+
+# Un-ignore some files
+!/README.md
+!/.gitignore
+!/*.hs
+!/*.cabal
