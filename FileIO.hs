@@ -30,9 +30,10 @@ getPrefix textHandle prefixLen line col = do
         lastN n xs = drop (length xs - n) xs
 
 
+-- | Wrapper for hGetLine that handles EOF using the Maybe monad.
 maybeGetLine ::
-    Handle ->
-    IO (Maybe String)
+    Handle ->         -- ^ handle of file that is to be read from
+    IO (Maybe String) -- ^ Just (read string) or Nothing
 maybeGetLine handle = do
     eof <- hIsEOF handle
     if eof
@@ -42,17 +43,21 @@ maybeGetLine handle = do
         return $ Just line
 
 
+-- | Wrapper for splitOn that works with the Maybe monad.
 maybeSplit ::
-    String ->
-    Maybe String ->
-    Maybe [String]
+    String ->       -- ^ delimiters for splitting
+    Maybe String -> -- ^ Just (string that is to be split) or Nothing
+    Maybe [String]  -- ^ Just (split string) or Nothing
 maybeSplit _ Nothing = Nothing
 maybeSplit dels (Just s) = Just $ splitOn dels s
 
 
+-- | Reads the header of an ARPA file.
+-- CAUTION: The handle MUST be at the beginning of the file or this function
+-- won't work!
 readHeader ::
-    Handle ->      -- ^ handle of model file
-    IO ModelHeader -- ^ read model header
+    Handle -> -- ^ handle of model file
+    IO Header -- ^ read model header
 readHeader modelHandle = go $ Header 0 []
     where
         go :: ModelHeader -> IO ModelHeader
@@ -68,10 +73,14 @@ readHeader modelHandle = go $ Header 0 []
                 _ -> go header
 
 
-readNGrams ::
-    Handle ->  -- ^ handle of model file
-    IO [NGram] -- ^ read n-grams
-readNGrams modelHandle = go []
+-- | Reads the n-gram sections of an ARPA file that follow the header.
+-- CAUTION: The handle MUST be hehind the ARPA header or this function
+-- won't work!
+readAllNGrams ::
+    Handle -> -- ^ handle of model file
+    Int ->    -- ^ maximum n for n-grams
+    IO NGrams -- ^ all read n-grams for n = 1..max
+readAllNGrams modelHandle nMax = go 1
     where
         go :: [NGram] -> IO [NGram]
         go ngrams = do
