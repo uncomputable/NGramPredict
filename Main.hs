@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Monad (replicateM_)
+import FileIO
 import System.Environment (getArgs, getProgName)
 import System.IO
 
@@ -12,13 +12,23 @@ main = do
     if length args < 5
     then printHelp
     else do
+        let modelName = args !! 1
         let fileName = args !! 2
         let line = read $ args !! 3
         let colomn = read $ args !! 4
 
-        file <- openFile fileName ReadMode
-        prefix <- getPrefix file 2 line colomn
+        textHandle <- openFile fileName ReadMode
+        prefix <- getPrefix textHandle 2 line colomn
         mapM_ putStrLn prefix
+        hClose textHandle
+
+        modelHandle <- openFile modelName ReadMode
+        header <- readHeader modelHandle
+        putStrLn $ show header
+
+        oneGrams <- readNGrams modelHandle
+        putStrLn $ show oneGrams
+        hClose modelHandle
 
 
 -- | Prints usage advice on the command line.
