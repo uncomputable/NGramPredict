@@ -44,19 +44,3 @@ printHelp = do
         , "    <line>   ... line number for suggestion position (1-based)"
         , "    <column> ... column number for suggestion position (1-based)"
         ]
-
-
--- | Returns the prefix for the word suggestion.
-getPrefix ::
-    Handle ->   -- ^ handle of text file
-    Int ->      -- ^ length of prefix
-    Int ->      -- ^ line number (1-based)
-    Int ->      -- ^ column number (1-based)
-    IO [String] -- ^ found prefix
-getPrefix file prefixLen line col = do
-    replicateM_ (line - 1) $ hGetLine file
-    foundLine <- hGetLine file
-    return $ lastN prefixLen $ words $ fst $ splitAt col foundLine
-    where
-        lastN :: Int -> [a] -> [a]
-        lastN n xs = drop (length xs - n) xs
