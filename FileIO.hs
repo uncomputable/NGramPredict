@@ -4,15 +4,10 @@ import Control.Monad (replicateM_)
 import Data.List.Split (splitOn)
 import System.IO
 
-data ModelHeader = Header Int [Int] deriving Show
-data NGram = NGram Double [String] Double deriving Show
+data Header = Header Int [Int] deriving Show
+data NGram = NGram Double [String] Double | MaxNGram Double [String] deriving Show
 type NGrams = [[NGram]]
-data Model = Model ModelHeader NGrams deriving Show
-
-
-emptyModel :: Model
-emptyModel = Model (Header 0 []) []
-
+data Model = Model Header NGrams deriving Show
 
 -- | Returns the prefix for the word suggestion.
 getPrefix ::
@@ -52,6 +47,21 @@ maybeSplit _ Nothing = Nothing
 maybeSplit dels (Just s) = Just $ splitOn dels s
 
 
+-- | Reads the entire model from the ARPA file.
+readModel ::
+    String -> -- ^ path to model file
+    IO Model  -- ^ read model
+readModel modelPath = do
+    modelHandle <- openFile modelPath ReadMode
+    header <- readHeader modelHandle
+    allNGrams <- readAllNGrams modelHandle $ headerGetNMax header
+    hClose modelHandle
+    return $ Model header allNGrams
+    where
+        headerGetNMax :: Header -> Int
+        headerGetNMax (Header nMax _) = nMax
+
+
 -- | Reads the header of an ARPA file.
 -- CAUTION: The handle MUST be at the beginning of the file or this function
 -- won't work!
@@ -60,12 +70,12 @@ readHeader ::
     IO Header -- ^ read model header
 readHeader modelHandle = go $ Header 0 []
     where
-        go :: ModelHeader -> IO ModelHeader
+        go :: Header -> IO Header
         go header@(Header n nums) = do
             line <- maybeGetLine modelHandle
-            let parsed = maybeSplit "=" line
+            let split = maybeSplit "=" line
 
-            case parsed of
+            case split of
                 Nothing -> return header
                 Just [""] -> return header
                 Just [_, num] -> let header' = Header (n+1) (nums ++ [read num])
@@ -82,17 +92,41 @@ readAllNGrams ::
     IO NGrams -- ^ all read n-grams for n = 1..max
 readAllNGrams modelHandle nMax = go 1
     where
-        go :: [NGram] -> IO [NGram]
-        go ngrams = do
-            line <- maybeGetLine modelHandle
-            let parsed = maybeSplit "\t" line
+        go :: Int -> IO NGrams
+        go n
+            | n == nMax = do
+                ngrams <- readNGrams [] True
+                return [ngrams]
+            | otherwise = do
+                ngrams <- readNGrams [] False
+                rest <- go (n + 1)
+                return $ ngrams : rest
+             -- ^^^^^^^^^^^^^^^^^^ performance ???
 
-            case parsed of
+        readNGrams :: [NGram] -> Bool -> IO [NGram]
+        readNGrams ngrams isMax = do
+            line <- maybeGetLine modelHandle
+            let split = maybeSplit "\t" line
+
+            case split of
                 Nothing -> return ngrams
                 Just [""] -> return ngrams
-                Just [_] -> go ngrams
-                Just (pStr : xs) -> let p = read pStr
-                                        w = init xs
-                                        b = read $ last xs
-                                    in go $ (NGram p w b) : ngrams
-                _ -> undefined
+                Just [_] -> readNGrams ngrams isMax
+                Just [] -> undefined
+                Just split' -> let ngram = if isMax
+                                           then parseMaxNGram split'
+                                           else parseNGram split'
+                               in readNGrams (ngram : ngrams) isMax
+
+        parseNGram :: [String] -> NGram
+        parseNGram (pStr : xs) = let p = read pStr
+                                     w = init xs
+                                     b = read $ last xs
+                                 in NGram p w b
+        parseNGram _ = undefined
+
+        parseMaxNGram :: [String] -> NGram
+        parseMaxNGram (pStr : xs) = let p = read pStr
+                                        w = xs
+                                    in MaxNGram p w
+        parseMaxNGram _ = undefined
