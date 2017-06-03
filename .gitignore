@@ -6,3 +6,6 @@
 !/.gitignore
 !/*.hs
 !/*.cabal
+
+# ... and ignore some matched files again
+Setup.hs
