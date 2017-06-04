@@ -23,7 +23,7 @@ main = do
         hClose textHandle
 
         model <- readModel modelPath
-        putStrLn $ show nGrams
+        putStrLn $ show model
 
 
 -- | Prints usage advice on the command line.
