@@ -1,3 +1,4 @@
+-- | Contains the main function and handles command line input.
 module Main where
 
 import FileIO
