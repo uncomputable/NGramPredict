@@ -3,12 +3,13 @@ module FileIO where
 
 import Control.Monad (replicateM_)
 import Data.List.Split (splitOn)
+import qualified Data.Map.Strict as Map
 import System.IO
 
 data Header = Header Int [Int] deriving Show
-data NGram = NGram Double [String] Double | MaxNGram Double [String] deriving Show
-type NGrams = [[NGram]]
-data Model = Model Header NGrams deriving Show
+data Prob = Prob Double Double | ProbMax Double deriving Show
+type NGrams = Map.Map [String] Prob
+data Model = Model Header [NGrams] deriving Show
 
 -- | Returns the prefix for the word suggestion.
 getPrefix ::
@@ -88,23 +89,23 @@ readHeader modelHandle = go $ Header 0 []
 -- CAUTION: The handle MUST be hehind the ARPA header or this function
 -- won't work!
 readAllNGrams ::
-    Handle -> -- ^ handle of model file
-    Int ->    -- ^ maximum n for n-grams
-    IO NGrams -- ^ all read n-grams for n = 1..max
+    Handle ->   -- ^ handle of model file
+    Int ->      -- ^ maximum n for n-grams
+    IO [NGrams] -- ^ all read n-grams for n = 1..max
 readAllNGrams modelHandle nMax = go 1
     where
-        go :: Int -> IO NGrams
+        go :: Int -> IO [NGrams]
         go n
             | n == nMax = do
-                ngrams <- readNGrams [] True
+                ngrams <- readNGrams Map.empty True
                 return [ngrams]
             | otherwise = do
-                ngrams <- readNGrams [] False
+                ngrams <- readNGrams Map.empty False
                 rest <- go (n + 1)
-                return $ ngrams : rest
              -- ^^^^^^^^^^^^^^^^^^ performance ???
+                return $ ngrams : rest
 
-        readNGrams :: [NGram] -> Bool -> IO [NGram]
+        readNGrams :: NGrams -> Bool -> IO NGrams
         readNGrams ngrams isMax = do
             line <- maybeGetLine modelHandle
             let split = maybeSplit "\t" line
@@ -114,20 +115,21 @@ readAllNGrams modelHandle nMax = go 1
                 Just [""] -> return ngrams
                 Just [_] -> readNGrams ngrams isMax
                 Just [] -> undefined
-                Just split' -> let ngram = if isMax
-                                           then parseMaxNGram split'
-                                           else parseNGram split'
-                               in readNGrams (ngram : ngrams) isMax
+                Just split' -> let (ngram, prob) = if isMax
+                                                   then parseMaxNGram split'
+                                                   else parseNGram split'
+                                   ngrams' = Map.insert ngram prob ngrams
+                               in readNGrams ngrams' isMax
 
-        parseNGram :: [String] -> NGram
+        parseNGram :: [String] -> ([String], Prob)
         parseNGram (pStr : xs) = let p = read pStr
                                      w = init xs
                                      b = read $ last xs
-                                 in NGram p w b
+                                 in (w, Prob p b)
         parseNGram _ = undefined
 
-        parseMaxNGram :: [String] -> NGram
+        parseMaxNGram :: [String] -> ([String], Prob)
         parseMaxNGram (pStr : xs) = let p = read pStr
                                         w = xs
-                                    in MaxNGram p w
+                                    in (w, ProbMax p)
         parseMaxNGram _ = undefined
