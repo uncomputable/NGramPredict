@@ -1,15 +1,11 @@
 -- | Handles all I/O operations like reading from files.
 module FileIO where
 
+import Model
 import Control.Monad (replicateM_)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import System.IO
-
-data Header = Header Int [Int] deriving Show
-data Prob = Prob Double Double | ProbMax Double deriving Show
-type NGrams = Map.Map [String] Prob
-data Model = Model Header [NGrams] deriving Show
 
 -- | Returns the prefix for the word suggestion.
 getPrefix ::
