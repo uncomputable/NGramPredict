@@ -21,7 +21,7 @@ computeProb' ::
     [String] -> -- ^ prefix p
     [NGrams] -> -- ^ list of n-gram maps
     Double      -- ^ probability (w_i | p)
-computeProb' w_i fullPrefix allNGrams = go (fullPrefix ++ [w_i])
+computeProb' w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [String] -> Double
         go ngram = let prob = getProb ngram
@@ -35,7 +35,7 @@ computeProb' w_i fullPrefix allNGrams = go (fullPrefix ++ [w_i])
                                     b = if isJust prob
                                         then extractBackoff $ fromJust prob -- gamma found
                                         else 0                              -- gamma not found
-                                in b * go shorter
+                                in b + go shorter
 
         firstJust :: [Maybe a] -> Maybe a
         firstJust [] = Nothing
