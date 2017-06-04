@@ -2,6 +2,7 @@
 module Main where
 
 import FileIO
+import Probability
 import System.Environment (getArgs, getProgName)
 import System.IO (hClose, openFile, IOMode(ReadMode))
 
@@ -24,7 +25,10 @@ main = do
         hClose textHandle
 
         model <- readModel modelPath
-        putStrLn $ show model
+        -- putStrLn $ show model
+        -- let prob = computeProb "Sitzung" ["vorangegangenen"] model
+        let prob = computeProb "Sitzung" ["nonexistant"] model
+        putStrLn $ show prob
 
 
 -- | Prints usage advice on the command line.
