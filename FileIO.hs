@@ -3,7 +3,7 @@ module FileIO where
 
 import Model
 import Control.Monad (replicateM_)
-import Data.List.Split (splitOn)
+import Data.List.Split (splitOneOf)
 import qualified Data.Map.Strict as Map
 import System.IO
 
@@ -36,13 +36,13 @@ maybeGetLine handle = do
         return $ Just line
 
 
--- | Wrapper for splitOn that works with the Maybe monad.
+-- | Wrapper for splitOneOf that works with the Maybe monad.
 maybeSplit ::
-    String ->       -- ^ delimiters for splitting
+    String ->       -- ^ string of all possible char delimiters
     Maybe String -> -- ^ Just (string that is to be split) or Nothing
     Maybe [String]  -- ^ Just (split string) or Nothing
 maybeSplit _ Nothing = Nothing
-maybeSplit dels (Just s) = Just $ splitOn dels s
+maybeSplit dels (Just s) = Just $ splitOneOf dels s
 
 
 -- | Reads the entire model from the ARPA file.
@@ -104,7 +104,7 @@ readAllNGrams modelHandle nMax = go 1
         readNGrams :: NGrams -> Bool -> IO NGrams
         readNGrams ngrams isMax = do
             line <- maybeGetLine modelHandle
-            let split = maybeSplit "\t" line
+            let split = maybeSplit " \t" line
 
             case split of
                 Nothing -> return ngrams
