@@ -1,5 +1,5 @@
 -- | Contains functions for computing probabilities using a language model.
-module Probability where
+module Probability (computeProb) where
 
 import Model
 import qualified Data.Map.Strict as Map
@@ -25,16 +25,12 @@ computeProb' w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [String] -> Double
         go ngram = let prob = getProb ngram
-                   in if isJust prob
-                      then extractProb $ fromJust prob
-                      else backoff ngram
+                   in maybe (backoff ngram) extractProb prob
 
         backoff :: [String] -> Double
         backoff [] = undefined -- unigram w_i was not in model at all!
         backoff (_ : shorter) = let prob = getProb shorter
-                                    b = if isJust prob
-                                        then extractBackoff $ fromJust prob -- gamma found
-                                        else 0                              -- gamma not found
+                                    b = maybe 0 extractBackoff prob
                                 in b + go shorter
 
         firstJust :: [Maybe a] -> Maybe a

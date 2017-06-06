@@ -1,5 +1,5 @@
 -- | Handles all I/O operations like reading from files.
-module FileIO where
+module FileIO (getPrefix, readModel) where
 
 import Model
 import Control.Monad (replicateM_)

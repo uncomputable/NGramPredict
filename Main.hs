@@ -1,5 +1,5 @@
 -- | Contains the main function and handles command line input.
-module Main where
+module Main (main) where
 
 import FileIO
 import Probability
@@ -28,7 +28,7 @@ main = do
         -- putStrLn $ show model
         -- let prob = computeProb "Sitzung" ["vorangegangenen"] model
         let prob = computeProb "Sitzung" ["nonexistant"] model
-        putStrLn $ show prob
+        print prob
 
 
 -- | Prints usage advice on the command line.

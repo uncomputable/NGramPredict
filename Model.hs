@@ -1,5 +1,5 @@
 -- | Defines data structures for the n-gram model.
-module Model where
+module Model (module Model) where
 
 import qualified Data.Map.Strict as Map
 
