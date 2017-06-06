@@ -23,10 +23,30 @@ getPrefix textPath prefixLen line col = try `catchIOError` handler
             replicateM_ (line - 1) $ hGetLine textHandle
             foundLine <- hGetLine textHandle
             hClose textHandle
-            return $ lastN prefixLen $ words $ fst $ splitAt col foundLine
+            let lineFront = words $ fst $ splitAt col foundLine
+            _ <- detectErrors foundLine lineFront
+            return $ lastN prefixLen lineFront
 
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
+
+        detectErrors :: String -> [String] -> IO [String]
+        detectErrors foundLine lineFront
+            | length foundLine < col = error $ "Line in the text file was "
+                ++ "shorter than <col>! Maybe <col> is too large or <line> "
+                ++ "contains an error."
+            | invalidDelimiter $ foundLine !! (col - 1) = error
+                $ "Failed to extract prefix, because <col> is pointing to a "
+                ++ "non-whitespace character!"
+            | length lineFront < prefixLen = error
+                $ "There aren't enough words left in front of <col> to "
+                ++ "extract a prefix of length <number>!"
+            | otherwise = return []
+
+        invalidDelimiter :: Char -> Bool
+        invalidDelimiter c
+            | c == ' ' || c == '\t' = False
+            | otherwise = True
 
 
 -- | Reads the entire model from the ARPA file.
