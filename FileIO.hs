@@ -100,7 +100,7 @@ readHeader modelHandle = go $ Header 0 []
             case split of
                 Nothing -> return header
                 Just [""] -> return header
-                Just [_, num] -> let header' = Header (n+1) (nums ++ [read num])
+                Just [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
                                  in go header'            --_^^^^^^^^^^^^^^^^^^ performance goes over board
                 _ -> go header
 
