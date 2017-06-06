@@ -5,8 +5,8 @@ import Model
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 
--- | Wrapper for computeProb' that takes full models instead of lists of
--- n-grams.
+-- | Wrapper for computeProb' that takes full models instead of a list of
+-- maps of n-grams.
 computeProb
     :: String    -- ^ word w_i following prefix
     -> [String]  -- ^ prefix p
@@ -19,7 +19,7 @@ computeProb w_i prefix model = computeProb' w_i prefix $ extractAllNGrams model
 computeProb'
     :: String    -- ^ word w_i following prefix
     -> [String]  -- ^ prefix p
-    -> [NGrams]  -- ^ list of n-gram maps
+    -> [NGrams]  -- ^ list of maps of n-grams
     -> Double    -- ^ probability (w_i | p)
 computeProb' w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where

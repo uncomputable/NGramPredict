@@ -1,4 +1,5 @@
--- | Defines data structures for the n-gram model.
+-- | Defines data structures for the n-gram model and corresponding, useful
+-- functions.
 module Model (module Model) where
 
 import qualified Data.Map.Strict as Map
