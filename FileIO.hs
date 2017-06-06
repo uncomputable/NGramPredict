@@ -23,28 +23,6 @@ getPrefix textHandle prefixLen line col = do
         lastN n xs = drop (length xs - n) xs
 
 
--- | Wrapper for hGetLine that handles EOF using the Maybe monad.
-maybeGetLine
-    :: Handle             -- ^ handle of file that is to be read from
-    -> IO (Maybe String)  -- ^ Just (read string) or Nothing
-maybeGetLine handle = do
-    eof <- hIsEOF handle
-    if eof
-    then return Nothing
-    else do
-        line <- hGetLine handle
-        return $ Just line
-
-
--- | Wrapper for splitOneOf that works with the Maybe monad.
-maybeSplit
-    :: String          -- ^ string of all possible char delimiters
-    -> Maybe String    -- ^ Just (string that is to be split) or Nothing
-    -> Maybe [String]  -- ^ Just (split string) or Nothing
-maybeSplit _ Nothing = Nothing
-maybeSplit dels (Just s) = Just $ splitOneOf dels s
-
-
 -- | Reads the entire model from the ARPA file.
 readModel
     :: String    -- ^ path to model file
@@ -129,3 +107,25 @@ readAllNGrams modelHandle nMax = go 1
                                         w = xs
                                     in (w, ProbMax p)
         parseMaxNGram _ = undefined
+
+
+-- | Wrapper for hGetLine that handles EOF using the Maybe monad.
+maybeGetLine
+    :: Handle             -- ^ handle of file that is to be read from
+    -> IO (Maybe String)  -- ^ Just (read string) or Nothing
+maybeGetLine handle = do
+    eof <- hIsEOF handle
+    if eof
+    then return Nothing
+    else do
+        line <- hGetLine handle
+        return $ Just line
+
+
+-- | Wrapper for splitOneOf that works with the Maybe monad.
+maybeSplit
+    :: String          -- ^ string of all possible char delimiters
+    -> Maybe String    -- ^ Just (string that is to be split) or Nothing
+    -> Maybe [String]  -- ^ Just (split string) or Nothing
+maybeSplit _ Nothing = Nothing
+maybeSplit dels (Just s) = Just $ splitOneOf dels s
