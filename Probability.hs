@@ -7,20 +7,20 @@ import Data.Maybe
 
 -- | Wrapper for computeProb' that takes full models instead of lists of
 -- n-grams.
-computeProb ::
-    String ->   -- ^ word w_i following prefix
-    [String] -> -- ^ prefix p
-    Model ->    -- ^ language model with n-grams
-    Double      -- ^ probability p(w_i | p)
+computeProb
+    :: String    -- ^ word w_i following prefix
+    -> [String]  -- ^ prefix p
+    -> Model     -- ^ language model with n-grams
+    -> Double    -- ^ probability p(w_i | p)
 computeProb w_i prefix model = computeProb' w_i prefix $ extractAllNGrams model
 
 
 -- | Computes the probablity of a word following a specific prefix.
-computeProb' ::
-    String ->   -- ^ word w_i following prefix
-    [String] -> -- ^ prefix p
-    [NGrams] -> -- ^ list of n-gram maps
-    Double      -- ^ probability (w_i | p)
+computeProb'
+    :: String    -- ^ word w_i following prefix
+    -> [String]  -- ^ prefix p
+    -> [NGrams]  -- ^ list of n-gram maps
+    -> Double    -- ^ probability (w_i | p)
 computeProb' w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [String] -> Double

@@ -8,12 +8,12 @@ import qualified Data.Map.Strict as Map
 import System.IO
 
 -- | Returns the prefix for the word suggestion.
-getPrefix ::
-    Handle ->   -- ^ handle of text file
-    Int ->      -- ^ length of prefix
-    Int ->      -- ^ line number (1-based)
-    Int ->      -- ^ column number (1-based)
-    IO [String] -- ^ found prefix
+getPrefix
+    :: Handle       -- ^ handle of text file
+    -> Int          -- ^ length of prefix
+    -> Int          -- ^ line number (1-based)
+    -> Int          -- ^ column number (1-based)
+    -> IO [String]  -- ^ found prefix
 getPrefix textHandle prefixLen line col = do
     replicateM_ (line - 1) $ hGetLine textHandle
     foundLine <- hGetLine textHandle
@@ -24,9 +24,9 @@ getPrefix textHandle prefixLen line col = do
 
 
 -- | Wrapper for hGetLine that handles EOF using the Maybe monad.
-maybeGetLine ::
-    Handle ->         -- ^ handle of file that is to be read from
-    IO (Maybe String) -- ^ Just (read string) or Nothing
+maybeGetLine
+    :: Handle             -- ^ handle of file that is to be read from
+    -> IO (Maybe String)  -- ^ Just (read string) or Nothing
 maybeGetLine handle = do
     eof <- hIsEOF handle
     if eof
@@ -37,18 +37,18 @@ maybeGetLine handle = do
 
 
 -- | Wrapper for splitOneOf that works with the Maybe monad.
-maybeSplit ::
-    String ->       -- ^ string of all possible char delimiters
-    Maybe String -> -- ^ Just (string that is to be split) or Nothing
-    Maybe [String]  -- ^ Just (split string) or Nothing
+maybeSplit
+    :: String          -- ^ string of all possible char delimiters
+    -> Maybe String    -- ^ Just (string that is to be split) or Nothing
+    -> Maybe [String]  -- ^ Just (split string) or Nothing
 maybeSplit _ Nothing = Nothing
 maybeSplit dels (Just s) = Just $ splitOneOf dels s
 
 
 -- | Reads the entire model from the ARPA file.
-readModel ::
-    String -> -- ^ path to model file
-    IO Model  -- ^ read model
+readModel
+    :: String    -- ^ path to model file
+    -> IO Model  -- ^ read model
 readModel modelPath = do
     modelHandle <- openFile modelPath ReadMode
     header <- readHeader modelHandle
@@ -63,9 +63,9 @@ readModel modelPath = do
 -- | Reads the header of an ARPA file.
 -- CAUTION: The handle MUST be at the beginning of the file or this function
 -- won't work!
-readHeader ::
-    Handle -> -- ^ handle of model file
-    IO Header -- ^ read model header
+readHeader
+    :: Handle     -- ^ handle of model file
+    -> IO Header  -- ^ read model header
 readHeader modelHandle = go $ Header 0 []
     where
         go :: Header -> IO Header
@@ -77,17 +77,17 @@ readHeader modelHandle = go $ Header 0 []
                 Nothing -> return header
                 Just [""] -> return header
                 Just [_, num] -> let header' = Header (n+1) (nums ++ [read num])
-                                 in go header'            -- ^^^^^^^^^^^^^^^^^^ performance goes over board
+                                 in go header'            --_^^^^^^^^^^^^^^^^^^ performance goes over board
                 _ -> go header
 
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
 -- CAUTION: The handle MUST be hehind the ARPA header or this function
 -- won't work!
-readAllNGrams ::
-    Handle ->   -- ^ handle of model file
-    Int ->      -- ^ maximum n for n-grams
-    IO [NGrams] -- ^ all read n-grams for n = 1..max
+readAllNGrams
+    :: Handle       -- ^ handle of model file
+    -> Int          -- ^ maximum n for n-grams
+    -> IO [NGrams]  -- ^ all read n-grams for n = 1..max
 readAllNGrams modelHandle nMax = go 1
     where
         go :: Int -> IO [NGrams]
@@ -98,7 +98,7 @@ readAllNGrams modelHandle nMax = go 1
             | otherwise = do
                 ngrams <- readNGrams Map.empty False
                 rest <- go (n + 1)
-             -- ^^^^^^^^^^^^^^^^^^ performance ???
+             --_^^^^^^^^^^^^^^^^^^ performance ???
                 return $ ngrams : rest
 
         readNGrams :: NGrams -> Bool -> IO NGrams
