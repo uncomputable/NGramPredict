@@ -74,10 +74,15 @@ handler
     -> IO a     -- ^ I/O action of the handler
 handler e
     | isDoesNotExistError e = error $ "File "
-        ++ maybe "" (\s -> '\'' : s ++ "\'") (ioeGetFileName e)
-        ++ " could not be found! There might be an error in the path."
+        ++ fileToString
+        ++ " could not be found! Maybe the path contains an error."
+    | isEOFError e = error $ "Went past the last line of the file "
+        ++ fileToString
+        ++ "! Maybe the <line> parameter contains an error."
     | otherwise = ioError e
-
+    where
+        fileToString :: String
+        fileToString = maybe "" (\s -> '\'' : s ++ "\'") $ ioeGetFileName e
 
 -- | Reads the header of an ARPA file.
 -- CAUTION: The handle MUST be at the beginning of the file or this function
