@@ -33,13 +33,13 @@ getPrefix textPath prefixLen line col = try `catchIOError` handler
         detectErrors :: String -> [String] -> IO [String]
         detectErrors foundLine lineFront
             | length foundLine < col = error $ "Line in the text file was "
-                ++ "shorter than <col>! Maybe <col> is too large or <line> "
-                ++ "contains an error."
+                ++ "shorter than <column>! Maybe <column> is too large or "
+                ++ "<line> contains an error."
             | invalidDelimiter $ foundLine !! (col - 1) = error
-                $ "Failed to extract prefix, because <col> is pointing to a "
-                ++ "non-whitespace character!"
+                $ "Failed to extract prefix, because <column> is pointing to "
+                ++ "a non-whitespace character!"
             | length lineFront < prefixLen = error
-                $ "There aren't enough words left in front of <col> to "
+                $ "There aren't enough words left in front of <column> to "
                 ++ "extract a prefix of length <number>!"
             | otherwise = return []
 
@@ -83,6 +83,7 @@ handler e
     where
         fileToString :: String
         fileToString = maybe "" (\s -> '\'' : s ++ "\'") $ ioeGetFileName e
+
 
 -- | Reads the header of an ARPA file.
 -- CAUTION: The handle MUST be at the beginning of the file or this function
