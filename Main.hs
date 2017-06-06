@@ -4,7 +4,6 @@ module Main (main) where
 import FileIO
 import Probability
 import System.Environment (getArgs, getProgName)
-import System.IO (hClose, openFile, IOMode(ReadMode))
 
 -- | Entry point of the application.
 -- Console arguments: number, model, file, line, column
@@ -19,10 +18,8 @@ main = do
         let line = read $ args !! 3
         let colomn = read $ args !! 4
 
-        textHandle <- openFile textPath ReadMode
-        prefix <- getPrefix textHandle 2 line colomn
+        prefix <- getPrefix textPath 2 line colomn
         mapM_ putStrLn prefix
-        hClose textHandle
 
         model <- readModel modelPath
         -- putStrLn $ show model

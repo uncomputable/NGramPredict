@@ -6,19 +6,25 @@ import Control.Monad (replicateM_)
 import Data.List.Split (splitOneOf)
 import qualified Data.Map.Strict as Map
 import System.IO
+import System.IO.Error
 
 -- | Returns the prefix for the word suggestion.
 getPrefix
-    :: Handle       -- ^ handle of text file
+    :: String       -- ^ path to text file
     -> Int          -- ^ length of prefix
     -> Int          -- ^ line number (1-based)
     -> Int          -- ^ column number (1-based)
     -> IO [String]  -- ^ found prefix
-getPrefix textHandle prefixLen line col = do
-    replicateM_ (line - 1) $ hGetLine textHandle
-    foundLine <- hGetLine textHandle
-    return $ lastN prefixLen $ words $ fst $ splitAt col foundLine
+getPrefix textPath prefixLen line col = try `catchIOError` handler
     where
+        try :: IO [String]
+        try = do
+            textHandle <- openFile textPath ReadMode
+            replicateM_ (line - 1) $ hGetLine textHandle
+            foundLine <- hGetLine textHandle
+            hClose textHandle
+            return $ lastN prefixLen $ words $ fst $ splitAt col foundLine
+
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
 
@@ -27,15 +33,30 @@ getPrefix textHandle prefixLen line col = do
 readModel
     :: String    -- ^ path to model file
     -> IO Model  -- ^ read model
-readModel modelPath = do
-    modelHandle <- openFile modelPath ReadMode
-    header <- readHeader modelHandle
-    allNGrams <- readAllNGrams modelHandle $ headerGetNMax header
-    hClose modelHandle
-    return $ Model header allNGrams
+readModel modelPath = try `catchIOError` handler
     where
+        try :: IO Model
+        try = do
+            modelHandle <- openFile modelPath ReadMode
+            header <- readHeader modelHandle
+            allNGrams <- readAllNGrams modelHandle $ headerGetNMax header
+            hClose modelHandle
+            return $ Model header allNGrams
+
         headerGetNMax :: Header -> Int
         headerGetNMax (Header nMax _) = nMax
+
+
+-- | Handler for exceptions that can occur during I/O actions like opening
+-- a file.
+handler
+    :: IOError  -- ^ error that occurred
+    -> IO a     -- ^ I/O action of the handler
+handler e
+    | isDoesNotExistError e = error $ "File "
+        ++ maybe "" (\s -> '\'' : s ++ "\'") (ioeGetFileName e)
+        ++ " could not be found! There might be an error in the path."
+    | otherwise = ioError e
 
 
 -- | Reads the header of an ARPA file.
