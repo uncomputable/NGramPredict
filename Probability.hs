@@ -51,13 +51,13 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
                                     b = maybe 0 extractBackoff prob
                                 in b + go shorter
 
+        getProb :: [String] -> Maybe Prob
+        getProb ngram = let probs = map (Map.lookup ngram) allNGrams
+                        in firstJust probs
+                        -- thank you, lazyness!
+
         firstJust :: [Maybe a] -> Maybe a
         firstJust [] = Nothing
         firstJust (x : xs)
             | isNothing x = firstJust xs
             | otherwise = x
-
-        getProb :: [String] -> Maybe Prob
-        getProb ngram = let probs = map (Map.lookup ngram) allNGrams
-                        in firstJust probs
-                        -- thank you, lazyness!
