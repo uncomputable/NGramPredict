@@ -25,7 +25,7 @@ getPrefix textPath model line col = try `catchIOError` handler
             replicateM_ (line - 1) $ hGetLine textHandle
             foundLine <- hGetLine textHandle
             hClose textHandle
-            let maxLen = headerGetNMax $ extractHeader model
+            let maxLen = headerGetNMax (extractHeader model) - 1
             let lineFront = words $ fst $ splitAt col foundLine
             _ <- detectErrors foundLine lineFront
             return $ lastN maxLen lineFront
