@@ -19,16 +19,30 @@ type NGrams = Map.Map [String] Prob
 data Model = Model Header [NGrams] deriving Show
 
 
--- | Extracts the list of all n-grams from a model.
+-- | Extracts the list of all maps of n-gram from a model.
 extractAllNGrams
-    :: Model     -- ^ source of to-be-extracted list
+    :: Model     -- ^ source of extraction
     -> [NGrams]  -- ^ extracted list of n-grams
 extractAllNGrams (Model _ allNGrams) = allNGrams
 
 
+-- | Extracts the header from a model.
+extractHeader
+    :: Model   -- ^ source of extraction
+    -> Header  -- ^ extracted header
+extractHeader (Model header _) = header
+
+
+-- | Extracts the length of the longest n-grams from the header of a model.
+headerGetNMax
+    :: Header  -- ^ source of extraction
+    -> Int     -- ^ extracted longest length
+headerGetNMax (Header nMax _) = nMax
+
+
 -- | Extracts the probability from a Prob structure.
 extractProb
-    :: Prob    -- ^ source of to-be-extracted probability
+    :: Prob    -- ^ source of extraction
     -> Double  -- ^ extracted probability
 extractProb (Prob p _) = p
 extractProb (ProbMax p) = p
@@ -36,7 +50,7 @@ extractProb (ProbMax p) = p
 
 -- | Extracts the backoff weight from a Prob structure.
 extractBackoff
-    :: Prob    -- ^ source of to-be-extracted backoff weight
+    :: Prob    -- ^ source of extraction
     -> Double  -- ^ extracted backoff weight
 extractBackoff (Prob _ b) = b
 extractBackoff _ = undefined

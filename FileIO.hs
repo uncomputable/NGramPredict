@@ -63,9 +63,6 @@ readModel modelPath = try `catchIOError` handler
             hClose modelHandle
             return $ Model header allNGrams
 
-        headerGetNMax :: Header -> Int
-        headerGetNMax (Header nMax _) = nMax
-
 
 -- | Handler for exceptions that can occur during I/O actions like opening
 -- a file.
