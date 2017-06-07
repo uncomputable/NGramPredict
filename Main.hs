@@ -13,19 +13,20 @@ main = do
     if length args < 5
     then printHelp
     else do
+        let number = read $ args !! 0
         let modelPath = args !! 1
         let textPath = args !! 2
         let line = read $ args !! 3
         let colomn = read $ args !! 4
 
-        prefix <- getPrefix textPath 2 line colomn
-        mapM_ putStrLn prefix
-
         model <- readModel modelPath
-        -- putStrLn $ show model
-        -- let prob = computeProb "Sitzung" ["vorangegangenen"] model
-        let prob = computeProb "Sitzung" ["nonexistant"] model
-        print prob
+        prefix <- getPrefix textPath model line colomn
+        let prediction = predict number prefix model
+
+        putStrLn "Prefix:"
+        putStrLn $ unwords prefix
+        putStrLn "\nPredictions:"
+        mapM_ putStrLn prediction
 
 
 -- | Prints usage advice on the command line.
