@@ -8,14 +8,16 @@ import qualified Data.Map.Strict as Map
 import System.IO
 import System.IO.Error
 
--- | Returns the prefix for the word suggestion.
+-- | Reads a prefix from a text file and returns it. The maximum length of
+-- said prefix is determined by the n-grams of maximum length of the language
+-- model.
 getPrefix
     :: String       -- ^ path to text file
-    -> Int          -- ^ length of prefix
+    -> Model        -- ^ language model
     -> Int          -- ^ line number (1-based)
     -> Int          -- ^ column number (1-based)
     -> IO [String]  -- ^ found prefix
-getPrefix textPath prefixLen line col = try `catchIOError` handler
+getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
         try = do
@@ -23,24 +25,25 @@ getPrefix textPath prefixLen line col = try `catchIOError` handler
             replicateM_ (line - 1) $ hGetLine textHandle
             foundLine <- hGetLine textHandle
             hClose textHandle
+            let maxLen = headerGetNMax $ extractHeader model
             let lineFront = words $ fst $ splitAt col foundLine
             _ <- detectErrors foundLine lineFront
-            return $ lastN prefixLen lineFront
+            return $ lastN maxLen lineFront
 
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
 
         detectErrors :: String -> [String] -> IO [String]
         detectErrors foundLine lineFront
-            | length foundLine < col = error $ "Line in the text file was "
+            | length foundLine < col = error $ "The line in the text file was "
                 ++ "shorter than <column>! Maybe <column> is too large or "
                 ++ "<line> contains an error."
             | invalidDelimiter $ foundLine !! (col - 1) = error
-                $ "Failed to extract prefix, because <column> is pointing to "
-                ++ "a non-whitespace character!"
-            | length lineFront < prefixLen = error
-                $ "There aren't enough words left in front of <column> to "
-                ++ "extract a prefix of length <number>!"
+                $ "Failed to extract the prefix, because <column> is "
+                ++ "pointing to a non-whitespace character!"
+            | length lineFront == 0 = error
+                $ "There isn't a single word in front of <column>! Maybe "
+                ++ "<column> is too small or <line> contains an error."
             | otherwise = return []
 
         invalidDelimiter :: Char -> Bool
@@ -49,7 +52,7 @@ getPrefix textPath prefixLen line col = try `catchIOError` handler
             | otherwise = True
 
 
--- | Reads the entire model from the ARPA file.
+-- | Reads the entire model from an ARPA file.
 readModel
     :: String    -- ^ path to model file
     -> IO Model  -- ^ read model
