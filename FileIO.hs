@@ -102,7 +102,7 @@ readHeader modelHandle = go $ Header 0 []
                 Nothing -> return header
                 Just [""] -> return header
                 Just [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
-                                 in go header'            --_^^^^^^^^^^^^^^^^^^ performance goes over board
+                                 in go header'           --  ^^^^^^^^^^^^^^^^^^ performance goes over board
                 _ -> go header
 
 
@@ -123,7 +123,7 @@ readAllNGrams modelHandle nMax = go 1
             | otherwise = do
                 ngrams <- readNGrams Map.empty False
                 rest <- go (n + 1)
-             --_^^^^^^^^^^^^^^^^^^ performance ???
+            --  ^^^^^^^^^^^^^^^^^^ performance ???
                 return $ ngrams : rest
 
         readNGrams :: NGrams -> Bool -> IO NGrams
