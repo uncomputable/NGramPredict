@@ -119,12 +119,12 @@ readAllNGrams modelHandle nMax = go 1
         go n
             | n == nMax = do
                 ngrams <- readNGrams Map.empty True
-                return [ngrams]
+                ngrams `seq` return [ngrams]
             | otherwise = do
                 ngrams <- readNGrams Map.empty False
                 rest <- go (n + 1)
             --  ^^^^^^^^^^^^^^^^^^ performance ???
-                return $ ngrams : rest
+                ngrams `seq` return $ ngrams : rest
 
         readNGrams :: NGrams -> Bool -> IO NGrams
         readNGrams ngrams isMax = do
@@ -140,19 +140,20 @@ readAllNGrams modelHandle nMax = go 1
                                                    then parseMaxNGram split'
                                                    else parseNGram split'
                                    ngrams' = Map.insert ngram prob ngrams
-                               in readNGrams ngrams' isMax
+                               in ngrams' `seq` readNGrams ngrams' isMax
+                              --  ^^^^^^^^^^^^^ 0.5x memory, 10x runtime
 
         parseNGram :: [String] -> ([String], Prob)
         parseNGram (pStr : xs) = let p = read pStr
                                      w = init xs
                                      b = read $ last xs
-                                 in (w, Prob p b)
+                                 in p `seq` w `seq` b `seq` (w, Prob p b)
         parseNGram _ = undefined
 
         parseMaxNGram :: [String] -> ([String], Prob)
         parseMaxNGram (pStr : xs) = let p = read pStr
                                         w = xs
-                                    in (w, ProbMax p)
+                                    in p `seq` w `seq` (w, ProbMax p)
         parseMaxNGram _ = undefined
 
 
