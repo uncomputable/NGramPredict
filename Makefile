@@ -1,6 +1,12 @@
 PDF_VIEWER := evince
 GRAPH_TYPE := -hc
 
+SUGG_NUM   := 2
+MODEL_FILE := ngrams.arpa
+TEXT_FILE  := text.txt
+LINE       := 6
+COLUMN     := 50
+
 centres: GRAPH_TYPE := -hc
 centres: benchmark
 
@@ -14,7 +20,7 @@ types: GRAPH_TYPE := -hy
 types: benchmark
 
 benchmark:
-	cabal run 2 ngrams.arpa text.txt 6 50 -- +RTS $(GRAPH_TYPE) -i0.1
+	cabal run $(SUGG_NUM) $(MODEL_FILE) $(TEXT_FILE) $(LINE) $(COLUMN) -- +RTS $(GRAPH_TYPE) -i0.1
 	hp2ps -e9in -c NGramPredict.hp
 	epstopdf NGramPredict.ps
 	$(PDF_VIEWER) NGramPredict.pdf &
