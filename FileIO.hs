@@ -3,7 +3,7 @@ module FileIO (getPrefix, readModel) where
 
 import Model
 import Control.Monad (replicateM_)
-import Data.List.Split (splitOneOf)
+import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import System.IO
 import System.IO.Error
@@ -102,8 +102,12 @@ readHeader modelHandle = go $ Header 0 []
                 Nothing -> return header
                 Just [""] -> return header
                 Just [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
-                                 in go header'           --  ^^^^^^^^^^^^^^^^^^ performance goes over board
+                                 in go header'             --  ^^^^^^^^^^^^^^^^^^ performance goes over board
                 _ -> go header
+
+        maybeSplit :: String -> Maybe String -> Maybe [String]
+        maybeSplit _ Nothing = Nothing
+        maybeSplit del (Just s) = Just $ splitOn del s
 
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
@@ -129,19 +133,22 @@ readAllNGrams modelHandle nMax = go 1
         readNGrams :: NGrams -> Bool -> IO NGrams
         readNGrams ngrams isMax = do
             line <- maybeGetLine modelHandle
-            let split = maybeSplit " \t" line
+            let split = maybeWords line
 
             case split of
                 Nothing -> return ngrams
-                Just [""] -> return ngrams
+                Just [] -> return ngrams
                 Just [_] -> readNGrams ngrams isMax
-                Just [] -> undefined
                 Just split' -> let (ngram, prob) = if isMax
                                                    then parseMaxNGram split'
                                                    else parseNGram split'
                                    ngrams' = Map.insert ngram prob ngrams
                                in ngrams' `seq` readNGrams ngrams' isMax
                               --  ^^^^^^^^^^^^^ 0.5x memory, 10x runtime
+
+        maybeWords :: Maybe String -> Maybe [String]
+        maybeWords Nothing = Nothing
+        maybeWords (Just s) = let split = words s in split `seq` Just split
 
         parseNGram :: [String] -> ([String], Prob)
         parseNGram (pStr : xs) = let p = read pStr
@@ -168,12 +175,3 @@ maybeGetLine handle = do
     else do
         line <- hGetLine handle
         return $ Just line
-
-
--- | Wrapper for splitOneOf that works with the Maybe monad.
-maybeSplit
-    :: String          -- ^ string of all possible char delimiters
-    -> Maybe String    -- ^ Just (string that is to be split) or Nothing
-    -> Maybe [String]  -- ^ Just (split string) or Nothing
-maybeSplit _ Nothing = Nothing
-maybeSplit dels (Just s) = Just $ splitOneOf dels s
