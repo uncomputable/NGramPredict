@@ -2,7 +2,6 @@
 module FileIO (getPrefix, readModel) where
 
 import Model
-import Control.Monad (replicateM_)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import System.IO
@@ -21,10 +20,9 @@ getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
         try = do
-            textHandle <- openFile textPath ReadMode
-            replicateM_ (line - 1) $ hGetLine textHandle
-            foundLine <- hGetLine textHandle
-            hClose textHandle
+            content <- readFile textPath
+            let foundLine = ((!! (line - 1)) . lines) content
+            -- too small or high <line> must still be caught
             let maxLen = headerGetNMax (extractHeader model) - 1
             let lineFront = words $ fst $ splitAt col foundLine
             _ <- detectErrors foundLine lineFront
