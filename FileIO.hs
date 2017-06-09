@@ -4,7 +4,6 @@ module FileIO (getPrefix, readModel) where
 import Model
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
-import System.IO
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -58,10 +57,10 @@ readModel modelPath = try `catchIOError` handler
     where
         try :: IO Model
         try = do
-            modelHandle <- openFile modelPath ReadMode
-            header <- readHeader modelHandle
-            allNGrams <- readAllNGrams modelHandle $ headerGetNMax header
-            hClose modelHandle
+            content <- readFile modelPath
+            let ls = lines content
+            header <- readHeader ls
+            allNGrams <- readAllNGrams ls $ headerGetNMax header
             return $ Model header allNGrams
 
 
@@ -84,69 +83,47 @@ handler e
 
 
 -- | Reads the header of an ARPA file.
--- CAUTION: The handle MUST be at the beginning of the file or this function
--- won't work!
 readHeader
-    :: Handle     -- ^ handle of model file
+    :: [String]   -- ^ lines of model file
     -> IO Header  -- ^ read model header
-readHeader modelHandle = go $ Header 0 []
+readHeader ls = go ls $ Header 0 []
     where
-        go :: Header -> IO Header
-        go header@(Header n nums) = do
-            line <- maybeGetLine modelHandle
-            let split = maybeSplit "=" line
+        go :: [String] -> Header -> IO Header
+        go [] header = return header
+        go (line : rest) header@(Header n nums) = do
+            let split = splitOn "=" line
 
             case split of
-                Nothing -> return header
-                Just [""] -> return header
-                Just [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
-                                 in go header'             --  ^^^^^^^^^^^^^^^^^^ performance goes over board
-                _ -> go header
-
-        maybeSplit :: String -> Maybe String -> Maybe [String]
-        maybeSplit _ Nothing = Nothing
-        maybeSplit del (Just s) = Just $ splitOn del s
+                [""] -> return header
+                [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
+                            in go rest header'
+                _ -> go rest header
 
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
--- CAUTION: The handle MUST be hehind the ARPA header or this function
--- won't work!
 readAllNGrams
-    :: Handle       -- ^ handle of model file
+    :: [String]     -- ^ lines of model file
     -> Int          -- ^ maximum n for n-grams
     -> IO [NGrams]  -- ^ all read n-grams for n = 1..max
-readAllNGrams modelHandle nMax = go 1
+readAllNGrams ls nMax = let ls' = drop (nMax + 2) ls
+                        in go ls' 1 Map.empty
     where
-        go :: Int -> IO [NGrams]
-        go n
-            | n == nMax = do
-                ngrams <- readNGrams Map.empty True
-                ngrams `seq` return [ngrams]
-            | otherwise = do
-                ngrams <- readNGrams Map.empty False
-                rest <- go (n + 1)
-            --  ^^^^^^^^^^^^^^^^^^ performance ???
-                ngrams `seq` return $ ngrams : rest
+        go :: [String] -> Int -> NGrams -> IO [NGrams]
+        go [] _ ngrams = return [ngrams]
+        go (line : rest) n ngrams = do
+            let ws = words line
 
-        readNGrams :: NGrams -> Bool -> IO NGrams
-        readNGrams ngrams isMax = do
-            line <- maybeGetLine modelHandle
-            let split = maybeWords line
-
-            case split of
-                Nothing -> return ngrams
-                Just [] -> return ngrams
-                Just [_] -> readNGrams ngrams isMax
-                Just split' -> let (ngram, prob) = if isMax
-                                                   then parseMaxNGram split'
-                                                   else parseNGram split'
-                                   ngrams' = Map.insert ngram prob ngrams
-                               in ngrams' `seq` readNGrams ngrams' isMax
-                              --  ^^^^^^^^^^^^^ 0.5x memory, 10x runtime
-
-        maybeWords :: Maybe String -> Maybe [String]
-        maybeWords Nothing = Nothing
-        maybeWords (Just s) = let split = words s in split `seq` Just split
+            case ws of
+                [] -> do
+                    otherNGrams <- go rest (n + 1) Map.empty
+                    return $ ngrams : otherNGrams
+                [_] -> go rest n ngrams
+                _ -> let (ngram, prob) = if n == nMax
+                                         then parseMaxNGram ws
+                                         else parseNGram ws
+                         ngrams' = Map.insert ngram prob ngrams
+                     in ngrams' `seq` go rest n ngrams'
+                    --  ^^^^^^^^^^^^^ 0.5x memory
 
         parseNGram :: [String] -> ([String], Prob)
         parseNGram (pStr : xs) = let p = read pStr
@@ -160,16 +137,3 @@ readAllNGrams modelHandle nMax = go 1
                                         w = xs
                                     in p `seq` w `seq` (w, ProbMax p)
         parseMaxNGram _ = undefined
-
-
--- | Wrapper for hGetLine that handles EOF using the Maybe monad.
-maybeGetLine
-    :: Handle             -- ^ handle of file that is to be read from
-    -> IO (Maybe String)  -- ^ Just (read string) or Nothing
-maybeGetLine handle = do
-    eof <- hIsEOF handle
-    if eof
-    then return Nothing
-    else do
-        line <- hGetLine handle
-        return $ Just line
