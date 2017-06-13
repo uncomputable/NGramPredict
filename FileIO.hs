@@ -59,8 +59,8 @@ readModel modelPath = try `catchIOError` handler
         try = do
             content <- readFile modelPath
             let ls = lines content
-            header <- readHeader ls
-            allNGrams <- readAllNGrams ls $ headerGetNMax header
+            let header = readHeader ls
+            let allNGrams = readAllNGrams ls $ headerGetNMax header
             return $ Model header allNGrams
 
 
@@ -84,17 +84,16 @@ handler e
 
 -- | Reads the header of an ARPA file.
 readHeader
-    :: [String]   -- ^ lines of model file
-    -> IO Header  -- ^ read model header
+    :: [String]  -- ^ lines of model file
+    -> Header    -- ^ read model header
 readHeader ls = go ls $ Header 0 []
     where
-        go :: [String] -> Header -> IO Header
-        go [] header = return header
-        go (line : rest) header@(Header n nums) = do
+        go :: [String] -> Header -> Header
+        go [] header = header
+        go (line : rest) header@(Header n nums) =
             let split = splitOn "=" line
-
-            case split of
-                [""] -> return header
+            in case split of
+                [""] -> header
                 [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
                             in go rest header'
                 _ -> go rest header
@@ -102,21 +101,19 @@ readHeader ls = go ls $ Header 0 []
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
 readAllNGrams
-    :: [String]     -- ^ lines of model file
-    -> Int          -- ^ maximum n for n-grams
-    -> IO [NGrams]  -- ^ all read n-grams for n = 1..max
+    :: [String]  -- ^ lines of model file
+    -> Int       -- ^ maximum n for n-grams
+    -> [NGrams]  -- ^ all read n-grams for n = 1..max
 readAllNGrams ls nMax = let ls' = drop (nMax + 2) ls
                         in go ls' 1 Map.empty
     where
-        go :: [String] -> Int -> NGrams -> IO [NGrams]
-        go [] _ ngrams = return [ngrams]
-        go (line : rest) n ngrams = do
+        go :: [String] -> Int -> NGrams -> [NGrams]
+        go [] _ ngrams = [ngrams]
+        go (line : rest) n ngrams =
             let ws = words line
-
-            case ws of
-                [] -> do
-                    otherNGrams <- go rest (n + 1) Map.empty
-                    return $ ngrams : otherNGrams
+            in case ws of
+                [] -> let otherNGrams = go rest (n + 1) Map.empty
+                      in ngrams : otherNGrams
                 [_] -> go rest n ngrams
                 _ -> let (ngram, prob) = if n == nMax
                                          then parseMaxNGram ws
