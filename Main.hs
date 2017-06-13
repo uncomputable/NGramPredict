@@ -14,10 +14,10 @@ main = do
     then printHelp
     else do
         let number = read $ args !! 0
-        let modelPath = args !! 1
-        let textPath = args !! 2
-        let line = read $ args !! 3
-        let colomn = read $ args !! 4
+            modelPath = args !! 1
+            textPath = args !! 2
+            line = read $ args !! 3
+            colomn = read $ args !! 4
 
         model <- readModel modelPath
         prefix <- getPrefix textPath model line colomn
