@@ -24,7 +24,7 @@ getPrefix textPath model line col = try `catchIOError` handler
             content <- readFile textPath
             let foundLine = ((!! (line - 1)) . lines) content
             -- too small or high <line> must still be caught
-            let maxLen = headerGetNMax (extractHeader model) - 1
+            let maxLen = headerNMax (modelHeader model) - 1
             let lineFront = words $ fst $ splitAt col foundLine
             _ <- detectErrors foundLine lineFront
             return $ lastN maxLen lineFront
@@ -62,7 +62,7 @@ readModel modelPath = try `catchIOError` handler
             content <- readFile modelPath
             let ls = lines content
             let header = readHeader ls
-            let (allNGrams, mapping) = readAllNGrams ls $ headerGetNMax header
+            let (allNGrams, mapping) = readAllNGrams ls $ headerNMax header
             return $ Model header allNGrams mapping
 
 
