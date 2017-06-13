@@ -2,8 +2,10 @@
 module FileIO (getPrefix, readModel) where
 
 import Model
+import Control.Monad.State.Lazy
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromMaybe, isNothing)
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -60,8 +62,8 @@ readModel modelPath = try `catchIOError` handler
             content <- readFile modelPath
             let ls = lines content
             let header = readHeader ls
-            let allNGrams = readAllNGrams ls $ headerGetNMax header
-            return $ Model header allNGrams
+            let (allNGrams, mapping) = readAllNGrams ls $ headerGetNMax header
+            return $ Model header allNGrams mapping
 
 
 -- | Handler for exceptions that can occur during I/O actions like opening
@@ -101,36 +103,62 @@ readHeader ls = go ls $ Header 0 []
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
 readAllNGrams
-    :: [String]  -- ^ lines of model file
-    -> Int       -- ^ maximum n for n-grams
-    -> [NGrams]  -- ^ all read n-grams for n = 1..max
-readAllNGrams ls nMax = let ls' = drop (nMax + 2) ls
-                        in go ls' 1 Map.empty
+    :: [String]            -- ^ lines of model file
+    -> Int                 -- ^ maximum n for n-grams
+    -> ([NGrams], UniMap)  -- ^ all read n-grams for n = 1..max
+                           --   and unigram mapping
+readAllNGrams ls nMax =
+    let ls' = drop (nMax + 2) ls
+        (allNGrams, finalBuilder) =
+            runState (go ls' 1 Map.empty) Builder {nextInt = 0, currMap = Map.empty}
+    in (allNGrams, currMap finalBuilder)
     where
-        go :: [String] -> Int -> NGrams -> [NGrams]
-        go [] _ ngrams = [ngrams]
-        go (line : rest) n ngrams =
+        go :: [String] -> Int -> NGrams -> State MapBuilder [NGrams]
+        go [] _ ngrams = return [ngrams]
+        go (line : rest) n ngrams = do
             let ws = words line
-            in case ws of
-                [] -> let otherNGrams = go rest (n + 1) Map.empty
-                      in ngrams : otherNGrams
+            case ws of
+                []  -> do otherNGrams <- go rest (n + 1) Map.empty
+                          otherNGrams `seq` return $ ngrams : otherNGrams
                 [_] -> go rest n ngrams
-                _ -> let (ngram, prob) = if n == nMax
-                                         then parseMaxNGram ws
-                                         else parseNGram ws
-                         ngrams' = Map.insert ngram prob ngrams
-                     in ngrams' `seq` go rest n ngrams'
-                    --  ^^^^^^^^^^^^^ 0.5x memory
+                _   -> do (ngram, prob) <- if n == nMax
+                                           then parseMaxNGram ws
+                                           else parseNGram ws
+                          let ngrams' = Map.insert ngram prob ngrams
+                          ngrams' `seq` go rest n ngrams'
 
-        parseNGram :: [String] -> ([String], Prob)
-        parseNGram (pStr : xs) = let p = read pStr
-                                     w = init xs
-                                     b = read $ last xs
-                                 in p `seq` w `seq` b `seq` (w, Prob p b)
-        parseNGram _ = undefined
+        parseNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseNGram [] = undefined
+        parseNGram (pStr : xs) = do
+            let p = read pStr
+                w = init xs
+                b = read $ last xs
+            ngram <- lookupInsert w
+            ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 
-        parseMaxNGram :: [String] -> ([String], Prob)
-        parseMaxNGram (pStr : xs) = let p = read pStr
-                                        w = xs
-                                    in p `seq` w `seq` (w, ProbMax p)
-        parseMaxNGram _ = undefined
+        parseMaxNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseMaxNGram [] = undefined
+        parseMaxNGram (pStr : xs) = do
+            let p = read pStr
+            ngram <- lookupInsert xs
+            ngram `seq` p `seq` return (ngram, ProbMax p)
+
+        lookupInsert :: [String] -> State MapBuilder [Integer]
+        lookupInsert [] = return []
+        lookupInsert (w : ws) = do
+            int <- lookupInsert' w
+            otherInts <- lookupInsert ws
+            int `seq` return $ int : otherInts
+
+        lookupInsert' :: String -> State MapBuilder Integer
+        lookupInsert' w = do
+            Builder {nextInt = next, currMap = mapping} <- get
+            let maybeVal = Map.lookup w mapping
+                mapping' = if isNothing maybeVal
+                           then Map.insert w next mapping
+                           else mapping
+                next' = if isNothing maybeVal
+                        then next + 1
+                        else next
+            put Builder {nextInt = next', currMap = mapping'}
+            return $ fromMaybe next maybeVal
