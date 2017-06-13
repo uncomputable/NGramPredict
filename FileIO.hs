@@ -93,10 +93,10 @@ readHeader ls = go ls $ Header 0 []
         go (line : rest) header@(Header n nums) =
             let split = splitOn "=" line
             in case split of
-                [""] -> header
+                [""]     -> header
                 [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
                             in go rest header'
-                _ -> go rest header
+                _        -> go rest header
 
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
