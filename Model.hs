@@ -6,31 +6,49 @@ import qualified Data.Map.Strict as Map
 
 -- | Header of the model file containing the maximum length of n-grams and the
 -- number of n-grams for each n.
-data Header = Header Int [Int] deriving Show
+data Header
+    = Header Int [Int]  -- ^ (max length) (numbers of n-grams)
+    deriving Show
 
 -- | Probability of an n-gram and its backoff weight (unless n = nMax)
-data Prob = Prob Double Double | ProbMax Double deriving Show
+data Prob
+    = Prob Double Double  -- ^ probability (backoff weight)
+    | ProbMax Double      -- ^ probability
+    deriving Show
 
--- | Map of all n-grams for a fixed n. The n-gram (list of words) maps to its
--- probability and backoff weight.
-type NGrams = Map.Map [String] Prob
+-- | Maps n-grams for a fixed n (that have been converted to an integer
+-- representation) to their probabilities (and backoff weights).
+type NGrams
+    = Map.Map [Integer] Prob  -- ^ (converted n-gram) -> probability
 
--- | Combines the header information with the n-gram maps for each n.
-data Model = Model Header [NGrams] deriving Show
+-- | Data structure for building a UniMap structure.
+data MapBuilder = Builder
+      { nextInt :: Integer  -- ^ next integer to use
+      , currMap :: UniMap   -- ^ current mapping
+      } deriving Show
+
+-- | Bijective mapping of unigrams to their integer representation.
+type UniMap =
+    Map.Map String Integer  -- ^ mapping: unigram -> integer
+
+-- | Combines header, n-grams and integer mapping.
+data Model
+    = Model Header [NGrams] UniMap  -- ^ (model header) (all n-grams) (unigram mapping)
+    deriving Show
 
 
 -- | Extracts the list of all maps of n-gram from a model.
 extractAllNGrams
     :: Model     -- ^ source of extraction
     -> [NGrams]  -- ^ extracted list of n-grams
-extractAllNGrams (Model _ allNGrams) = allNGrams
+extractAllNGrams (Model _ allNGrams _) = allNGrams
 
 
 -- | Extracts the header from a model.
 extractHeader
     :: Model   -- ^ source of extraction
     -> Header  -- ^ extracted header
-extractHeader (Model header _) = header
+extractHeader (Model header _ _) = header
 
 
 -- | Extracts the length of the longest n-grams from the header of a model.
