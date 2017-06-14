@@ -30,13 +30,13 @@ predict n prefix model =
         selectBestN :: Ord b => [(a, b)] -> (a, b) -> [(a, b)]
         selectBestN best curr
             | length best < n = curr : best
-            | otherwise = replaceSmaller curr best
+            | otherwise       = replaceSmaller curr best
 
         replaceSmaller :: Ord b => (a, b) -> [(a, b)] -> [(a, b)]
         replaceSmaller _ [] = []
         replaceSmaller x@(_, p1) (el@(_, p2) : rest)
-            | p1 <= p2 = el : replaceSmaller x rest
-            | otherwise = x : rest
+            | p1 <= p2  = el : replaceSmaller x rest
+            | otherwise = x  : rest
 
 
 -- | Computes the probablity of a word following a specific prefix, using a
@@ -67,4 +67,4 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
         firstJust [] = Nothing
         firstJust (x : xs)
             | isNothing x = firstJust xs
-            | otherwise = x
+            | otherwise   = x
