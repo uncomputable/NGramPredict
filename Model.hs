@@ -20,8 +20,8 @@ data Prob
     { problty :: Double  -- ^ probability
     } deriving Show
 
--- | Maps n-grams for a fixed n (that have been converted to an integer
--- representation) to their probabilities (and backoff weights).
+-- | Maps n-grams for a fixed n (that have been encoded as integers)
+-- to their probabilities (and backoff weights).
 type NGrams
     = Map.Map [Integer] Prob  -- ^ (converted n-gram) -> probability
 
@@ -31,7 +31,7 @@ data MapBuilder = Builder
       , currMap :: UniMap   -- ^ current mapping
       } deriving Show
 
--- | Bijective mapping of unigrams to their integer representation.
+-- | Bijective mapping of unigrams to their integer representation / encoding.
 type UniMap =
     Map.Map String Integer  -- ^ mapping: unigram -> integer
 
