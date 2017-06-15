@@ -4,6 +4,7 @@ module FileIO (getPrefix, readModel) where
 import Model
 import Control.Monad.State.Lazy
 import Data.List.Split (splitOn)
+import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isNothing)
 import System.IO.Error
@@ -109,8 +110,8 @@ readAllNGrams
                            --   and unigram mapping
 readAllNGrams ls nMax =
     let ls' = drop (nMax + 2) ls
-        (allNGrams, finalBuilder) =
-            runState (go ls' 1 Map.empty) Builder {nextInt = 0, currMap = Map.empty}
+        (allNGrams, finalBuilder) = runState (go ls' 1 Map.empty)
+            Builder {nextInt = 0, currMap = Bimap.empty}
     in (allNGrams, currMap finalBuilder)
     where
         go :: [String] -> Int -> NGrams -> State MapBuilder [NGrams]
@@ -153,9 +154,9 @@ readAllNGrams ls nMax =
         lookupInsert' :: String -> State MapBuilder Integer
         lookupInsert' w = do
             Builder {nextInt = next, currMap = mapping} <- get
-            let maybeVal = Map.lookup w mapping
+            let maybeVal = Bimap.lookup w mapping
                 mapping' = if isNothing maybeVal
-                           then Map.insert w next mapping
+                           then Bimap.insert w next mapping
                            else mapping
                 next' = if isNothing maybeVal
                         then next + 1

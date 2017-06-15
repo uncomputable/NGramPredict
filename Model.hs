@@ -2,7 +2,8 @@
 -- functions.
 module Model (module Model) where
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Bimap as Bimap
+import qualified Data.Map as Map
 
 -- | Header of the model file containing meta information.
 data Header = Header
@@ -33,7 +34,7 @@ data MapBuilder = Builder
 
 -- | Bijective mapping of unigrams to their integer representation / encoding.
 type UniMap =
-    Map.Map String Integer  -- ^ mapping: unigram -> integer
+    Bimap.Bimap String Integer  -- ^ mapping: unigram <-> integer
 
 -- | Combines header, n-grams and integer mapping.
 data Model = Model

@@ -3,6 +3,7 @@ module Probability (predict) where
 
 import Model
 import Data.List (foldl')
+import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isNothing)
 
