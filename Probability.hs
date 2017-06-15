@@ -16,8 +16,9 @@ predict
     -> [String]  -- ^ list of n unigrams u with highest p(u | p)
 predict n prefix model =
     let mapping = modelUniMap model
-        encPrefix = map (fromJust . (`Map.lookup` mapping)) prefix
-    in map show $ go encPrefix
+        encPrefix = map (fromJust . (`Bimap.lookup` mapping)) prefix
+        encPrediction = go encPrefix
+    in map (fromJust . (`Bimap.lookupR` mapping)) encPrediction
     where
         go :: [Integer] -> [Integer]
         go encPrefix =
