@@ -55,7 +55,7 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
                    in maybe (goBackoff ngram) problty maybeProb
 
         goBackoff :: [Integer] -> Double
-        goBackoff [] = undefined -- unigram w_i was not in model at all! FIXME: needs error message
+        goBackoff [] = undefined -- unigram w_i was not in model at all!
         goBackoff (_ : shorter) = let maybeProb = getProb shorter
                                       weight = maybe 0 backoff maybeProb
                                   in weight + go shorter
