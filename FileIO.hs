@@ -2,10 +2,11 @@
 module FileIO (getPrefix, readModel) where
 
 import Model
-import Control.Monad (replicateM_)
-import Data.List.Split (splitOneOf)
+import Control.Monad.State.Lazy
+import Data.List.Split (splitOn)
+import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
-import System.IO
+import Data.Maybe (fromMaybe, isNothing)
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -21,12 +22,11 @@ getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
         try = do
-            textHandle <- openFile textPath ReadMode
-            replicateM_ (line - 1) $ hGetLine textHandle
-            foundLine <- hGetLine textHandle
-            hClose textHandle
-            let maxLen = headerGetNMax (extractHeader model) - 1
-            let lineFront = words $ fst $ splitAt col foundLine
+            content <- readFile textPath
+            let foundLine = ((!! (line - 1)) . lines) content
+            -- too small or high <line> must still be caught
+                maxLen = headerNMax (modelHeader model) - 1
+                lineFront = words $ fst $ splitAt col foundLine
             _ <- detectErrors foundLine lineFront
             return $ lastN maxLen lineFront
 
@@ -60,11 +60,11 @@ readModel modelPath = try `catchIOError` handler
     where
         try :: IO Model
         try = do
-            modelHandle <- openFile modelPath ReadMode
-            header <- readHeader modelHandle
-            allNGrams <- readAllNGrams modelHandle $ headerGetNMax header
-            hClose modelHandle
-            return $ Model header allNGrams
+            content <- readFile modelPath
+            let ls = lines content
+                header = readHeader ls
+                (allNGrams, mapping) = readAllNGrams ls $ headerNMax header
+            return $ Model header allNGrams mapping
 
 
 -- | Handler for exceptions that can occur during I/O actions like opening
@@ -86,93 +86,80 @@ handler e
 
 
 -- | Reads the header of an ARPA file.
--- CAUTION: The handle MUST be at the beginning of the file or this function
--- won't work!
 readHeader
-    :: Handle     -- ^ handle of model file
-    -> IO Header  -- ^ read model header
-readHeader modelHandle = go $ Header 0 []
+    :: [String]  -- ^ lines of model file
+    -> Header    -- ^ read model header
+readHeader ls = go ls $ Header 0 []
     where
-        go :: Header -> IO Header
-        go header@(Header n nums) = do
-            line <- maybeGetLine modelHandle
-            let split = maybeSplit "=" line
-
-            case split of
-                Nothing -> return header
-                Just [""] -> return header
-                Just [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
-                                 in go header'           --  ^^^^^^^^^^^^^^^^^^ performance goes over board
-                _ -> go header
+        go :: [String] -> Header -> Header
+        go [] header = header
+        go (line : rest) header@(Header n nums) =
+            let split = splitOn "=" line
+            in case split of
+                [""]     -> header
+                [_, num] -> let header' = Header (n + 1) (nums ++ [read num])
+                            in go rest header'
+                _        -> go rest header
 
 
 -- | Reads the n-gram sections of an ARPA file that follow the header.
--- CAUTION: The handle MUST be hehind the ARPA header or this function
--- won't work!
 readAllNGrams
-    :: Handle       -- ^ handle of model file
-    -> Int          -- ^ maximum n for n-grams
-    -> IO [NGrams]  -- ^ all read n-grams for n = 1..max
-readAllNGrams modelHandle nMax = go 1
+    :: [String]            -- ^ lines of model file
+    -> Int                 -- ^ maximum n for n-grams
+    -> ([NGrams], UniMap)  -- ^ all read n-grams for n = 1..max
+                           --   and unigram mapping
+readAllNGrams ls nMax =
+    let ls' = drop (nMax + 2) ls
+        (allNGrams, finalBuilder) = runState (go ls' 1 Map.empty)
+            Builder {nextInt = 0, currMap = Bimap.empty}
+    in (allNGrams, currMap finalBuilder)
     where
-        go :: Int -> IO [NGrams]
-        go n
-            | n == nMax = do
-                ngrams <- readNGrams Map.empty True
-                return [ngrams]
-            | otherwise = do
-                ngrams <- readNGrams Map.empty False
-                rest <- go (n + 1)
-            --  ^^^^^^^^^^^^^^^^^^ performance ???
-                return $ ngrams : rest
+        go :: [String] -> Int -> NGrams -> State MapBuilder [NGrams]
+        go [] _ ngrams = return [ngrams]
+        go (line : rest) n ngrams = do
+            let ws = words line
+            case ws of
+                []  -> do otherNGrams <- go rest (n + 1) Map.empty
+                          otherNGrams `seq` return $ ngrams : otherNGrams
+                [_] -> go rest n ngrams
+                _   -> do (ngram, prob) <- if n == nMax
+                                           then parseMaxNGram ws
+                                           else parseNGram ws
+                          let ngrams' = Map.insert ngram prob ngrams
+                          ngrams' `seq` go rest n ngrams'
 
-        readNGrams :: NGrams -> Bool -> IO NGrams
-        readNGrams ngrams isMax = do
-            line <- maybeGetLine modelHandle
-            let split = maybeSplit " \t" line
+        parseNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseNGram [] = undefined
+        parseNGram (pStr : xs) = do
+            let p = read pStr
+                w = init xs
+                b = read $ last xs
+            ngram <- lookupInsert w
+            ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 
-            case split of
-                Nothing -> return ngrams
-                Just [""] -> return ngrams
-                Just [_] -> readNGrams ngrams isMax
-                Just [] -> undefined
-                Just split' -> let (ngram, prob) = if isMax
-                                                   then parseMaxNGram split'
-                                                   else parseNGram split'
-                                   ngrams' = Map.insert ngram prob ngrams
-                               in readNGrams ngrams' isMax
+        parseMaxNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseMaxNGram [] = undefined
+        parseMaxNGram (pStr : xs) = do
+            let p = read pStr
+            ngram <- lookupInsert xs
+            ngram `seq` p `seq` return (ngram, ProbMax p)
 
-        parseNGram :: [String] -> ([String], Prob)
-        parseNGram (pStr : xs) = let p = read pStr
-                                     w = init xs
-                                     b = read $ last xs
-                                 in (w, Prob p b)
-        parseNGram _ = undefined
+        lookupInsert :: [String] -> State MapBuilder [Integer]
+        lookupInsert [] = return []
+        lookupInsert (w : ws) = do
+            int <- lookupInsert' w
+            otherInts <- lookupInsert ws
+            int `seq` return $ int : otherInts
 
-        parseMaxNGram :: [String] -> ([String], Prob)
-        parseMaxNGram (pStr : xs) = let p = read pStr
-                                        w = xs
-                                    in (w, ProbMax p)
-        parseMaxNGram _ = undefined
-
-
--- | Wrapper for hGetLine that handles EOF using the Maybe monad.
-maybeGetLine
-    :: Handle             -- ^ handle of file that is to be read from
-    -> IO (Maybe String)  -- ^ Just (read string) or Nothing
-maybeGetLine handle = do
-    eof <- hIsEOF handle
-    if eof
-    then return Nothing
-    else do
-        line <- hGetLine handle
-        return $ Just line
-
-
--- | Wrapper for splitOneOf that works with the Maybe monad.
-maybeSplit
-    :: String          -- ^ string of all possible char delimiters
-    -> Maybe String    -- ^ Just (string that is to be split) or Nothing
-    -> Maybe [String]  -- ^ Just (split string) or Nothing
-maybeSplit _ Nothing = Nothing
-maybeSplit dels (Just s) = Just $ splitOneOf dels s
+        lookupInsert' :: String -> State MapBuilder Integer
+        lookupInsert' w = do
+            Builder {nextInt = next, currMap = mapping} <- get
+            let maybeVal = Bimap.lookup w mapping
+                mapping' = if isNothing maybeVal
+                           then Bimap.insert w next mapping
+                           else mapping
+                next' = if isNothing maybeVal
+                        then next + 1
+                        else next
+            put Builder {nextInt = next', currMap = mapping'}
+            return $ fromMaybe next maybeVal

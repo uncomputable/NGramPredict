@@ -2,55 +2,43 @@
 -- functions.
 module Model (module Model) where
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Bimap as Bimap
+import qualified Data.Map as Map
 
--- | Header of the model file containing the maximum length of n-grams and the
--- number of n-grams for each n.
-data Header = Header Int [Int] deriving Show
+-- | Header of the model file containing meta information.
+data Header = Header
+    { headerNMax :: Int    -- ^ max length of n-grams
+    , headerNums :: [Int]  -- ^ numbers of n-grams for each n
+    } deriving Show
 
 -- | Probability of an n-gram and its backoff weight (unless n = nMax)
-data Prob = Prob Double Double | ProbMax Double deriving Show
+data Prob
+    = Prob
+    { problty :: Double  -- ^ probability
+    , backoff :: Double  -- ^ backoff weight
+    }
+    | ProbMax
+    { problty :: Double  -- ^ probability
+    } deriving Show
 
--- | Map of all n-grams for a fixed n. The n-gram (list of words) maps to its
--- probability and backoff weight.
-type NGrams = Map.Map [String] Prob
+-- | Maps n-grams for a fixed n (that have been encoded as integers)
+-- to their probabilities (and backoff weights).
+type NGrams
+    = Map.Map [Integer] Prob  -- ^ (converted n-gram) -> probability
 
--- | Combines the header information with the n-gram maps for each n.
-data Model = Model Header [NGrams] deriving Show
+-- | Data structure for building a UniMap structure.
+data MapBuilder = Builder
+      { nextInt :: Integer  -- ^ next integer to use
+      , currMap :: UniMap   -- ^ current mapping
+      } deriving Show
 
+-- | Bijective mapping of unigrams to their integer representation / encoding.
+type UniMap =
+    Bimap.Bimap String Integer  -- ^ mapping: unigram <-> integer
 
--- | Extracts the list of all maps of n-gram from a model.
-extractAllNGrams
-    :: Model     -- ^ source of extraction
-    -> [NGrams]  -- ^ extracted list of n-grams
-extractAllNGrams (Model _ allNGrams) = allNGrams
-
-
--- | Extracts the header from a model.
-extractHeader
-    :: Model   -- ^ source of extraction
-    -> Header  -- ^ extracted header
-extractHeader (Model header _) = header
-
-
--- | Extracts the length of the longest n-grams from the header of a model.
-headerGetNMax
-    :: Header  -- ^ source of extraction
-    -> Int     -- ^ extracted longest length
-headerGetNMax (Header nMax _) = nMax
-
-
--- | Extracts the probability from a Prob structure.
-extractProb
-    :: Prob    -- ^ source of extraction
-    -> Double  -- ^ extracted probability
-extractProb (Prob p _) = p
-extractProb (ProbMax p) = p
-
-
--- | Extracts the backoff weight from a Prob structure.
-extractBackoff
-    :: Prob    -- ^ source of extraction
-    -> Double  -- ^ extracted backoff weight
-extractBackoff (Prob _ b) = b
-extractBackoff _ = undefined
+-- | Combines header, n-grams and integer mapping.
+data Model = Model
+    { modelHeader :: Header    -- ^ header of the model
+    , modelNGrams :: [NGrams]  -- ^ list of all n-gram maps
+    , modelUniMap :: UniMap    -- ^ unigram mapping
+    } deriving Show
