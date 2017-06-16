@@ -2,8 +2,8 @@
 module Probability (predict) where
 
 import Model
-import Data.List (foldl')
 import qualified Data.Bimap as Bimap
+import Data.List (sortBy)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isNothing)
 
@@ -24,21 +24,12 @@ predict n prefix model =
         go encPrefix =
             let allNGrams = modelNGrams model
                 uniGrams = Map.keys $ head allNGrams
-                uniGramsWithProbs =
+                uniProbs =
                     map (\[u] -> (u, computeProb u encPrefix allNGrams)) uniGrams
                       --  ^^^ non-exhaustive pattern matching?
-            in map fst $ foldl' selectBestN [] uniGramsWithProbs
-
-        selectBestN :: Ord b => [(a, b)] -> (a, b) -> [(a, b)]
-        selectBestN best curr
-            | length best < n = curr : best
-            | otherwise       = replaceSmaller curr best
-
-        replaceSmaller :: Ord b => (a, b) -> [(a, b)] -> [(a, b)]
-        replaceSmaller _ [] = []
-        replaceSmaller x@(_, p1) (el@(_, p2) : rest)
-            | p1 <= p2  = el : replaceSmaller x rest
-            | otherwise = x  : rest
+                sortedUniProbs =
+                    sortBy (\x y -> compare (snd y) (snd x)) uniProbs
+            in map fst $ take n sortedUniProbs
 
 
 -- | Computes the probablity of a word following a specific prefix, using a
