@@ -35,10 +35,10 @@ predict n prefix model =
 -- | Computes the probablity of a word following a specific prefix, using a
 -- specific language model.
 computeProb
-    :: Integer   -- ^ word w_i following prefix (encoded)
-    -> [Integer] -- ^ prefix p (encoded)
-    -> [NGrams]  -- ^ list of maps of n-grams
-    -> Double    -- ^ probability (w_i | p)
+    :: Integer    -- ^ word w_i following prefix (encoded)
+    -> [Integer]  -- ^ prefix p (encoded)
+    -> [NGrams]   -- ^ list of maps of n-grams
+    -> Double     -- ^ probability (w_i | p)
 computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [Integer] -> Double

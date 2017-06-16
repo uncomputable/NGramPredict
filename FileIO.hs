@@ -3,8 +3,8 @@ module FileIO (getPrefix, readModel) where
 
 import Model
 import Control.Monad.State.Lazy
-import Data.List.Split (splitOn)
 import qualified Data.Bimap as Bimap
+import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isNothing)
 import System.IO.Error
