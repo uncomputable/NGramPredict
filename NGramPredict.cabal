@@ -17,14 +17,17 @@ version:             0.4.0.0
 -- A longer description of the package.
 -- description:
 
-license:             MIT
-license-file:        LICENSE
-author:              Christian Lewe
-maintainer:          ch_lewe@wh2.tu-dresden.de
+license:               MIT
+license-file:          LICENSE
+author:                Christian Lewe
+maintainer:            ch_lewe@wh2.tu-dresden.de
 
-category:            Language
-build-type:          Simple
-cabal-version:       >=1.10
+category:              Language
+build-type:            Simple
+cabal-version:         >=1.10
+
+flag dev
+  default:             False
 
 executable NGramPredict
   main-is:             Main.hs
@@ -33,4 +36,7 @@ executable NGramPredict
   build-depends:       base, bimap, containers, mtl, split
   -- hs-source-dirs:
   default-language:    Haskell2010
-  ghc-options:         -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind -O -rtsopts -fprof-auto
+  if flag(dev)
+    ghc-options:       -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind -O -rtsopts -fprof-auto
+  else
+    ghc-options:       -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind -O
