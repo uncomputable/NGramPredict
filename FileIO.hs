@@ -21,14 +21,27 @@ getPrefix
 getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
-        try = do
-            content <- readFile textPath
-            let foundLine = ((!! (line - 1)) . lines) content
-            -- too small or high <line> must still be caught
-                maxLen = headerNMax (modelHeader model) - 1
-                lineFront = words $ fst $ splitAt col foundLine
-            _ <- detectErrors foundLine lineFront
-            return $ lastN maxLen lineFront
+        try =
+            if line <= 0 || col <= 0
+            then error $ "<line> and <column> must be greater than zero. "
+                ++ "Please choose larger values."
+            else do
+                content <- readFile textPath
+                let textLines = lines content
+                    maybeFoundLine = textLines ?!! (line - 1)
+                    foundLine = fromMaybe (error ("<line> is larger than the "
+                                ++ "line count of the file! Please choose a "
+                                ++ "smaller value")) maybeFoundLine
+                    maxLen    = headerNMax (modelHeader model) - 1
+                    lineFront = words $ fst $ splitAt col foundLine
+                _ <- detectLineErrors foundLine lineFront
+                return $ lastN maxLen lineFront
+
+        (?!!) :: [a] -> Int -> Maybe a
+        (?!!) [] _ = Nothing
+        (?!!) (x : xs) n
+            | n == 0 = Just x
+            | otherwise = (?!!) xs (n - 1)
 
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
