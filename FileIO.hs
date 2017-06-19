@@ -33,9 +33,9 @@ getPrefix textPath model line col = try `catchIOError` handler
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
 
-        detectErrors :: String -> [String] -> IO [String]
-        detectErrors foundLine lineFront
-            | length foundLine < col = error $ "The line in the text file was "
+        detectLineErrors :: String -> [String] -> IO [a]
+        detectLineErrors foundLine lineFront
+            | length foundLine < col = error $ "The line in the text file is "
                 ++ "shorter than <column>! Maybe <column> is too large or "
                 ++ "<line> contains an error."
             | invalidDelimiter $ foundLine !! (col - 1) = error
