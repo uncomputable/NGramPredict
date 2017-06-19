@@ -61,7 +61,7 @@ readModel modelPath = try `catchIOError` handler
         try :: IO Model
         try = do
             content <- readFile modelPath
-            let ls = lines content
+            let ls     = lines content
                 header = readHeader ls
                 (allNGrams, mapping) = readAllNGrams ls $ headerNMax header
             return $ Model header allNGrams mapping
@@ -158,8 +158,8 @@ readAllNGrams ls nMax =
                 mapping' = if isNothing maybeVal
                            then Bimap.insert w next mapping
                            else mapping
-                next' = if isNothing maybeVal
-                        then next + 1
-                        else next
+                next'    = if isNothing maybeVal
+                           then next + 1
+                           else next
             put Builder {nextInt = next', currMap = mapping'}
             return $ fromMaybe next maybeVal

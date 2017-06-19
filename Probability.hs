@@ -15,16 +15,16 @@ predict
     -> Model     -- ^ language model
     -> [String]  -- ^ list of n unigrams u with highest p(u | p)
 predict n prefix model =
-    let mapping = modelUniMap model
-        encPrefix = map (fromJust . (`Bimap.lookup` mapping)) prefix
+    let mapping       = modelUniMap model
+        encPrefix     = map (fromJust . (`Bimap.lookup` mapping)) prefix
         encPrediction = go encPrefix
     in map (fromJust . (`Bimap.lookupR` mapping)) encPrediction
     where
         go :: [Integer] -> [Integer]
         go encPrefix =
             let allNGrams = modelNGrams model
-                uniGrams = Map.keys $ head allNGrams
-                uniProbs =
+                uniGrams  = Map.keys $ head allNGrams
+                uniProbs  =
                     map (\[u] -> (u, computeProb u encPrefix allNGrams)) uniGrams
                       --  ^^^ non-exhaustive pattern matching?
                 sortedUniProbs =
@@ -48,7 +48,7 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
         goBackoff :: [Integer] -> Double
         goBackoff [] = undefined -- unigram w_i was not in model at all!
         goBackoff (_ : shorter) = let maybeProb = getProb shorter
-                                      weight = maybe 0 backoff maybeProb
+                                      weight    = maybe 0 backoff maybeProb
                                   in weight + go shorter
 
         getProb :: [Integer] -> Maybe Prob
