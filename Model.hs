@@ -24,7 +24,7 @@ data Prob
 -- | Maps n-grams for a fixed n (that have been encoded as integers)
 -- to their probabilities (and backoff weights).
 type NGrams
-    = Map.Map [Integer] Prob  -- ^ (converted n-gram) -> probability
+    = Map.Map [Integer] Prob  -- ^ (converted n-gram) -\> probability
 
 -- | Data structure for building a UniMap structure.
 data MapBuilder = Builder
@@ -34,7 +34,7 @@ data MapBuilder = Builder
 
 -- | Bijective mapping of unigrams to their integer representation / encoding.
 type UniMap =
-    Bimap.Bimap String Integer  -- ^ mapping: unigram <-> integer
+    Bimap.Bimap String Integer  -- ^ mapping: unigram \<-\> integer
 
 -- | Combines header, n-grams and integer mapping.
 data Model = Model

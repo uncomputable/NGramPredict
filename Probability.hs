@@ -2,8 +2,8 @@
 module Probability (predict) where
 
 import Model
-import Data.List (foldl')
 import qualified Data.Bimap as Bimap
+import Data.List (sortBy)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, isNothing)
 
@@ -15,39 +15,30 @@ predict
     -> Model     -- ^ language model
     -> [String]  -- ^ list of n unigrams u with highest p(u | p)
 predict n prefix model =
-    let mapping = modelUniMap model
-        encPrefix = map (fromJust . (`Bimap.lookup` mapping)) prefix
+    let mapping       = modelUniMap model
+        encPrefix     = map (fromJust . (`Bimap.lookup` mapping)) prefix
         encPrediction = go encPrefix
     in map (fromJust . (`Bimap.lookupR` mapping)) encPrediction
     where
         go :: [Integer] -> [Integer]
         go encPrefix =
             let allNGrams = modelNGrams model
-                uniGrams = Map.keys $ head allNGrams
-                uniGramsWithProbs =
+                uniGrams  = Map.keys $ head allNGrams
+                uniProbs  =
                     map (\[u] -> (u, computeProb u encPrefix allNGrams)) uniGrams
                       --  ^^^ non-exhaustive pattern matching?
-            in map fst $ foldl' selectBestN [] uniGramsWithProbs
-
-        selectBestN :: Ord b => [(a, b)] -> (a, b) -> [(a, b)]
-        selectBestN best curr
-            | length best < n = curr : best
-            | otherwise       = replaceSmaller curr best
-
-        replaceSmaller :: Ord b => (a, b) -> [(a, b)] -> [(a, b)]
-        replaceSmaller _ [] = []
-        replaceSmaller x@(_, p1) (el@(_, p2) : rest)
-            | p1 <= p2  = el : replaceSmaller x rest
-            | otherwise = x  : rest
+                sortedUniProbs =
+                    sortBy (\x y -> compare (snd y) (snd x)) uniProbs
+            in map fst $ take n sortedUniProbs
 
 
 -- | Computes the probablity of a word following a specific prefix, using a
 -- specific language model.
 computeProb
-    :: Integer   -- ^ word w_i following prefix (encoded)
-    -> [Integer] -- ^ prefix p (encoded)
-    -> [NGrams]  -- ^ list of maps of n-grams
-    -> Double    -- ^ probability (w_i | p)
+    :: Integer    -- ^ word w_i following prefix (encoded)
+    -> [Integer]  -- ^ prefix p (encoded)
+    -> [NGrams]   -- ^ list of maps of n-grams
+    -> Double     -- ^ probability (w_i | p)
 computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [Integer] -> Double
@@ -57,7 +48,7 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
         goBackoff :: [Integer] -> Double
         goBackoff [] = undefined -- unigram w_i was not in model at all!
         goBackoff (_ : shorter) = let maybeProb = getProb shorter
-                                      weight = maybe 0 backoff maybeProb
+                                      weight    = maybe 0 backoff maybeProb
                                   in weight + go shorter
 
         getProb :: [Integer] -> Maybe Prob
