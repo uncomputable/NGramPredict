@@ -5,7 +5,7 @@ import Model
 import qualified Data.Bimap as Bimap
 import Data.List (sortBy)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe
 
 -- | Returns the n most probable unigrams following a given prefix and using
 -- a specific language model.
@@ -25,14 +25,12 @@ predict n prefix model =
             let allNGrams = modelNGrams model
                 uniGrams  = Map.keys $ head allNGrams
                 uniProbs  =
-                    map (\[u] -> (u, computeProb u encPrefix allNGrams)) uniGrams
+                    map (\[u] -> (computeProb u encPrefix allNGrams, u)) uniGrams
                       --  ^^^ non-exhaustive pattern matching?
-                sortedUniProbs =
-                    sortBy (\x y -> compare (snd y) (snd x)) uniProbs
-            in map fst $ take n sortedUniProbs
+            in map snd $ take n $ sortBy (flip compare) uniProbs
 
 
--- | Computes the probablity of a word following a specific prefix, using a
+-- | Computes the probability of a word following a specific prefix, using a
 -- specific language model.
 computeProb
     :: Int       -- ^ word w_i following prefix (encoded)
@@ -53,11 +51,5 @@ computeProb w_i fullPrefix allNGrams = go $ fullPrefix ++ [w_i]
 
         getProb :: [Int] -> Maybe Prob
         getProb ngram = let probs = map (Map.lookup ngram) allNGrams
-                        in firstJust probs
+                        in (listToMaybe . catMaybes) probs
                         -- thank you, lazyness!
-
-        firstJust :: [Maybe a] -> Maybe a
-        firstJust [] = Nothing
-        firstJust (x : xs)
-            | isNothing x = firstJust xs
-            | otherwise   = x
