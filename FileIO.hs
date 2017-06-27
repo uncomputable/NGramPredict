@@ -135,7 +135,7 @@ readAllNGrams ls nMax =
                           let ngrams' = Map.insert ngram prob ngrams
                           ngrams' `seq` go rest n ngrams'
 
-        parseNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseNGram :: [String] -> State MapBuilder ([Int], Prob)
         parseNGram [] = undefined
         parseNGram (pStr : xs) = do
             let p = read pStr
@@ -144,21 +144,21 @@ readAllNGrams ls nMax =
             ngram <- lookupInsert w
             ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 
-        parseMaxNGram :: [String] -> State MapBuilder ([Integer], Prob)
+        parseMaxNGram :: [String] -> State MapBuilder ([Int], Prob)
         parseMaxNGram [] = undefined
         parseMaxNGram (pStr : xs) = do
             let p = read pStr
             ngram <- lookupInsert xs
             ngram `seq` p `seq` return (ngram, ProbMax p)
 
-        lookupInsert :: [String] -> State MapBuilder [Integer]
+        lookupInsert :: [String] -> State MapBuilder [Int]
         lookupInsert [] = return []
         lookupInsert (w : ws) = do
             int <- lookupInsert' w
             otherInts <- lookupInsert ws
             int `seq` return $ int : otherInts
 
-        lookupInsert' :: String -> State MapBuilder Integer
+        lookupInsert' :: String -> State MapBuilder Int
         lookupInsert' w = do
             Builder {nextInt = next, currMap = mapping} <- get
             let maybeVal = Bimap.lookup w mapping
