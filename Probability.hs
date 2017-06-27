@@ -43,12 +43,12 @@ computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
     where
         go :: [Int] -> Double
         go ngram = let maybeProb = getProb ngram
-                   in maybe (goBackoff ngram) problty maybeProb
+                   in maybe (goBackoff ngram) probability maybeProb
 
         goBackoff :: [Int] -> Double
         goBackoff [] = undefined -- unigram w_i was not in model at all!
         goBackoff (_ : shorter) = let maybeProb = getProb shorter
-                                      weight    = maybe 0 backoff maybeProb
+                                      weight    = fromJust $ maybe (Just 0) backoff maybeProb
                                   in weight + go shorter
 
         getProb :: [Int] -> Maybe Prob

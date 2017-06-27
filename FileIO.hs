@@ -129,27 +129,18 @@ readAllNGrams ls nMax =
                 []  -> do otherNGrams <- go rest (n + 1) Map.empty
                           otherNGrams `seq` return $ ngrams : otherNGrams
                 [_] -> go rest n ngrams
-                _   -> do (ngram, prob) <- if n == nMax
-                                           then parseMaxNGram ws
-                                           else parseNGram ws
+                _   -> do (ngram, prob) <- parseNGram ws $ n == nMax
                           let ngrams' = Map.insert ngram prob ngrams
                           ngrams' `seq` go rest n ngrams'
 
-        parseNGram :: [String] -> State MapBuilder ([Int], Prob)
-        parseNGram [] = undefined
-        parseNGram (pStr : xs) = do
+        parseNGram :: [String] -> Bool -> State MapBuilder ([Int], Prob)
+        parseNGram [] _ = undefined
+        parseNGram (pStr : xs) nMaximal = do
             let p = read pStr
-                w = init xs
-                b = read $ last xs
+                w = if nMaximal then xs else init xs
+                b = if nMaximal then Nothing else Just $ read $ last xs
             ngram <- lookupInsert w
             ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
-
-        parseMaxNGram :: [String] -> State MapBuilder ([Int], Prob)
-        parseMaxNGram [] = undefined
-        parseMaxNGram (pStr : xs) = do
-            let p = read pStr
-            ngram <- lookupInsert xs
-            ngram `seq` p `seq` return (ngram, ProbMax p)
 
         lookupInsert :: [String] -> State MapBuilder [Int]
         lookupInsert [] = return []

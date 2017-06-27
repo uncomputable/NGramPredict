@@ -11,14 +11,10 @@ data Header = Header
     , headerNums :: [Int]  -- ^ numbers of n-grams for each n
     } deriving Show
 
--- | Probability of an n-gram and its backoff weight (unless n = nMax)
-data Prob
-    = Prob
-    { problty :: Double  -- ^ probability
-    , backoff :: Double  -- ^ backoff weight
-    }
-    | ProbMax
-    { problty :: Double  -- ^ probability
+-- | Probability of an n-gram and its backoff weight.
+data Prob = Prob
+    { probability :: Double    -- ^ probability
+    , backoff :: Maybe Double  -- ^ backoff weight, unless n is maximal
     } deriving Show
 
 -- | Maps n-grams for a fixed n (that have been encoded as integers)
