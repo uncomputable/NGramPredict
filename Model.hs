@@ -1,6 +1,6 @@
 -- | Defines data structures for the n-gram model and corresponding, useful
 -- functions.
-module Model (module Model) where
+module Model where
 
 import qualified Data.Bimap as Bimap
 import qualified Data.Map as Map
