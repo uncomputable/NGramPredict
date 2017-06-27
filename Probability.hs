@@ -39,7 +39,7 @@ computeProb
     -> [Int]     -- ^ prefix p (encoded)
     -> [NGrams]  -- ^ list of maps of n-grams
     -> Double    -- ^ probability (w_i | p)
-computeProb w_i fullPrefix allNGrams = (10 **) $ go $ fullPrefix ++ [w_i]
+computeProb w_i fullPrefix allNGrams = go $ fullPrefix ++ [w_i]
     where
         go :: [Int] -> Double
         go ngram = let maybeProb = getProb ngram
