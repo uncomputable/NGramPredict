@@ -35,7 +35,7 @@ getPrefix textPath model line col = try `catchIOError` handler
                                 ++ "smaller value")) maybeFoundLine
                     maxLen    = headerNMax (modelHeader model) - 1
                     lineFront = words $ fst $ splitAt col foundLine
-                _ <- detectLineErrors foundLine lineFront
+                _ <- detectLineErrors foundLine
                 return $ lastN maxLen lineFront
 
         (?!!) :: [a] -> Int -> Maybe a
@@ -47,17 +47,14 @@ getPrefix textPath model line col = try `catchIOError` handler
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
 
-        detectLineErrors :: String -> [String] -> IO [a]
-        detectLineErrors foundLine lineFront
+        detectLineErrors :: String -> IO [a]
+        detectLineErrors foundLine
             | length foundLine < col = error $ "The line in the text file is "
                 ++ "shorter than <column>! Maybe <column> is too large or "
                 ++ "<line> contains an error."
             | not $ isSpace $ foundLine !! (col - 1) = error
                 $ "Failed to extract the prefix, because <column> is "
                 ++ "pointing to a non-whitespace character!"
-            | length lineFront == 0 = error
-                $ "There isn't a single word in front of <column>! Maybe "
-                ++ "<column> is too small or <line> contains an error."
             | otherwise = return []
 
 
