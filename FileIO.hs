@@ -4,6 +4,7 @@ module FileIO (getPrefix, readModel) where
 import Model
 import Control.Monad.State.Lazy
 import qualified Data.Bimap as Bimap
+import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isNothing)
@@ -51,18 +52,13 @@ getPrefix textPath model line col = try `catchIOError` handler
             | length foundLine < col = error $ "The line in the text file is "
                 ++ "shorter than <column>! Maybe <column> is too large or "
                 ++ "<line> contains an error."
-            | invalidDelimiter $ foundLine !! (col - 1) = error
+            | not $ isSpace $ foundLine !! (col - 1) = error
                 $ "Failed to extract the prefix, because <column> is "
                 ++ "pointing to a non-whitespace character!"
             | length lineFront == 0 = error
                 $ "There isn't a single word in front of <column>! Maybe "
                 ++ "<column> is too small or <line> contains an error."
             | otherwise = return []
-
-        invalidDelimiter :: Char -> Bool
-        invalidDelimiter c
-            | c == ' ' || c == '\t' = False
-            | otherwise = True
 
 
 -- | Reads the entire model from an ARPA file.
