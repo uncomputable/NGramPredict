@@ -7,7 +7,7 @@ import qualified Data.Bimap as Bimap
 import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromJust, fromMaybe, isNothing)
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -22,21 +22,39 @@ getPrefix
 getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
-        try =
-            if line <= 0 || col <= 0
-            then error $ "<line> and <column> must be greater than zero. "
-                ++ "Please choose larger values."
-            else do
-                content <- readFile textPath
-                let textLines = lines content
-                    maybeFoundLine = textLines ?!! (line - 1)
-                    foundLine = fromMaybe (error ("<line> is larger than the "
-                                ++ "line count of the file! Please choose a "
-                                ++ "smaller value")) maybeFoundLine
-                    maxLen    = headerNMax (modelHeader model) - 1
-                    lineFront = words $ fst $ splitAt col foundLine
-                _ <- detectLineErrors foundLine
-                return $ lastN maxLen lineFront
+        try = do
+            content <- readFile textPath
+            case go content of
+               Left err -> error err
+               Right prefix -> return prefix
+
+        go :: String -> Either String [String]
+        go content = do
+            textLines <- if line <= 0 || col <= 0
+                         then Left $ "<line> and <column> must be greater "
+                              ++ "than zero. Please choose larger values."
+                         else Right $ lines content
+            let maybeFoundLine = textLines ?!! (line - 1)
+                maxLen         = headerNMax (modelHeader model) - 1
+
+            _ <- if isNothing maybeFoundLine
+                 then Left $ "<line> is larger than the line count of the "
+                      ++ "file! Please choose a smaller value."
+                 else return []
+
+            let foundLine = fromJust maybeFoundLine
+            lineFront <- Right $ words $ fst $ splitAt col foundLine
+
+            _ <- if length foundLine < col
+                 then Left $ "The line in the text file is shorter than "
+                      ++ "<column>! Maybe <column> is too large or <line> "
+                      ++ "contains an error."
+                 else return []
+
+            if not $ isSpace $ foundLine !! (col - 1)
+            then Left $ "Failed to extract the prefix, because <column> "
+                 ++ "is pointing to a non-whitespace character!"
+            else Right $ lastN maxLen lineFront
 
         (?!!) :: [a] -> Int -> Maybe a
         (?!!) [] _ = Nothing
@@ -46,16 +64,6 @@ getPrefix textPath model line col = try `catchIOError` handler
 
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
-
-        detectLineErrors :: String -> IO [a]
-        detectLineErrors foundLine
-            | length foundLine < col = error $ "The line in the text file is "
-                ++ "shorter than <column>! Maybe <column> is too large or "
-                ++ "<line> contains an error."
-            | not $ isSpace $ foundLine !! (col - 1) = error
-                $ "Failed to extract the prefix, because <column> is "
-                ++ "pointing to a non-whitespace character!"
-            | otherwise = return []
 
 
 -- | Reads the entire model from an ARPA file.
