@@ -42,15 +42,15 @@ getPrefix textPath model line col = try `catchIOError` handler
                 Left $ "<line> is larger than the line count of the file! "
                 ++ "Please choose a smaller value."
 
-            let foundLine = fromJust maybeFoundLine
-                lineFront = words $ fst $ splitAt col foundLine
+            let foundLine  = fromJust maybeFoundLine
+                lineFront' = words $ fst $ splitAt col foundLine
+                lineFront  = if isSpace $ foundLine !! (col - 1)
+                             then lineFront'
+                             else init lineFront'
 
             when (length foundLine < col) $
                 Left $ "The line in the text file is shorter than <column>! "
                 ++ "Maybe <column> is too large or <line> contains an error."
-            unless (isSpace $ foundLine !! (col - 1)) $
-                Left $ "Failed to extract the prefix, because <column> is "
-                ++ "pointing to a non-whitespace character!"
 
             return $ lastN maxLen lineFront
 
