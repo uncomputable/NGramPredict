@@ -30,31 +30,29 @@ getPrefix textPath model line col = try `catchIOError` handler
 
         go :: String -> Either String [String]
         go content = do
-            textLines <- if line <= 0 || col <= 0
-                         then Left $ "<line> and <column> must be greater "
-                              ++ "than zero. Please choose larger values."
-                         else Right $ lines content
-            let maybeFoundLine = textLines ?!! (line - 1)
+            when (line <= 0 || col <= 0) $
+                Left $ "<line> and <column> must be greater than zero. "
+                ++ "Please choose larger values."
+
+            let textLines      = lines content
+                maybeFoundLine = textLines ?!! (line - 1)
                 maxLen         = headerNMax (modelHeader model) - 1
 
-            _ <- if isNothing maybeFoundLine
-                 then Left $ "<line> is larger than the line count of the "
-                      ++ "file! Please choose a smaller value."
-                 else return []
+            when (isNothing maybeFoundLine) $
+                Left $ "<line> is larger than the line count of the file! "
+                ++ "Please choose a smaller value."
 
             let foundLine = fromJust maybeFoundLine
-            lineFront <- Right $ words $ fst $ splitAt col foundLine
+                lineFront = words $ fst $ splitAt col foundLine
 
-            _ <- if length foundLine < col
-                 then Left $ "The line in the text file is shorter than "
-                      ++ "<column>! Maybe <column> is too large or <line> "
-                      ++ "contains an error."
-                 else return []
+            when (length foundLine < col) $
+                Left $ "The line in the text file is shorter than <column>! "
+                ++ "Maybe <column> is too large or <line> contains an error."
+            unless (isSpace $ foundLine !! (col - 1)) $
+                Left $ "Failed to extract the prefix, because <column> is "
+                ++ "pointing to a non-whitespace character!"
 
-            if not $ isSpace $ foundLine !! (col - 1)
-            then Left $ "Failed to extract the prefix, because <column> "
-                 ++ "is pointing to a non-whitespace character!"
-            else Right $ lastN maxLen lineFront
+            return $ lastN maxLen lineFront
 
         (?!!) :: [a] -> Int -> Maybe a
         (?!!) [] _ = Nothing
