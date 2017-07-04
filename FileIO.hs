@@ -36,6 +36,7 @@ getPrefix textPath model line col = try `catchIOError` handler
 
             let textLines      = lines content
                 maybeFoundLine = textLines ?!! (line - 1)
+                maybePrevLine  = textLines ?!! (line - 2)
                 maxLen         = headerNMax (modelHeader model) - 1
 
             when (isNothing maybeFoundLine) $
@@ -43,7 +44,8 @@ getPrefix textPath model line col = try `catchIOError` handler
                 ++ "Please choose a smaller value."
 
             let foundLine  = fromJust maybeFoundLine
-                lineFront' = words $ fst $ splitAt col foundLine
+                prevLine   = maybe [] words maybePrevLine
+                lineFront' = prevLine ++ words (fst $ splitAt col foundLine)
                 lineFront  = if isSpace $ foundLine !! (col - 1)
                              then lineFront'
                              else init lineFront'
