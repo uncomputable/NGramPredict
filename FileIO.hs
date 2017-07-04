@@ -8,6 +8,7 @@ import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust, fromMaybe, isNothing)
+import Data.Number.LogFloat (logToLogFloat)
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -137,9 +138,10 @@ readAllNGrams ls nMax =
         parseNGram :: [String] -> Bool -> State MapBuilder ([Int], Prob)
         parseNGram [] _ = undefined
         parseNGram (pStr : xs) nMaximal = do
-            let p = read pStr
-                w = if nMaximal then xs else init xs
-                b = if nMaximal then Nothing else Just $ read $ last xs
+            let p  = logToLogFloat $ read pStr
+                w  = if nMaximal then xs else init xs
+                b' = logToLogFloat $ read $ last xs
+                b  = if nMaximal then Nothing else Just b'
             ngram <- lookupInsert w
             ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 

@@ -2,8 +2,9 @@
 -- functions.
 module Model where
 
-import qualified Data.Bimap as Bimap
-import qualified Data.Map as Map
+import qualified Data.Bimap as Bimap (Bimap)
+import qualified Data.Map as Map (Map)
+import Data.Number.LogFloat (LogFloat)
 
 -- | Header of the model file containing meta information.
 data Header = Header
@@ -13,8 +14,8 @@ data Header = Header
 
 -- | Probability of an n-gram and its backoff weight.
 data Prob = Prob
-    { probability :: Double    -- ^ probability
-    , backoff :: Maybe Double  -- ^ backoff weight, unless n is maximal
+    { probability :: LogFloat    -- ^ probability
+    , backoff :: Maybe LogFloat  -- ^ backoff weight, unless n is maximal
     } deriving Show
 
 -- | Maps n-grams for a fixed n (that have been encoded as integers)
