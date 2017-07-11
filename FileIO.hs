@@ -125,13 +125,12 @@ readAllNGrams ls nMax =
     where
         go :: [String] -> Int -> NGrams -> State MapBuilder [NGrams]
         go [] _ ngrams = return [ngrams]
-        go (line : rest) n ngrams = do
-            let ws = words line
-            case ws of
+        go (line : rest) n ngrams =
+            case words line of
                 []  -> do otherNGrams <- go rest (n + 1) Map.empty
                           otherNGrams `seq` return $ ngrams : otherNGrams
                 [_] -> go rest n ngrams
-                _   -> do (ngram, prob) <- parseNGram ws $ n == nMax
+                ws  -> do (ngram, prob) <- parseNGram ws $ n == nMax
                           let ngrams' = Map.insert ngram prob ngrams
                           ngrams' `seq` go rest n ngrams'
 
