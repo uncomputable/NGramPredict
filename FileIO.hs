@@ -26,7 +26,7 @@ getPrefix textPath model line col = try `catchIOError` handler
         try = do
             content <- readFile textPath
             case go content of
-               Left err -> error err
+               Left err     -> error err
                Right prefix -> return prefix
 
         go :: String -> Either String [String]
@@ -60,7 +60,7 @@ getPrefix textPath model line col = try `catchIOError` handler
         (?!!) :: [a] -> Int -> Maybe a
         (?!!) [] _ = Nothing
         (?!!) (x : xs) n
-            | n == 0 = Just x
+            | n == 0    = Just x
             | otherwise = (?!!) xs (n - 1)
 
         lastN :: Int -> [a] -> [a]
@@ -76,8 +76,8 @@ readModel modelPath = try `catchIOError` handler
         try :: IO Model
         try = do
             content <- readFile modelPath
-            let ls     = lines content
-                header = readHeader ls
+            let ls                   = lines content
+                header               = readHeader ls
                 (allNGrams, mapping) = readAllNGrams ls $ headerNMax header
             return $ Model header allNGrams mapping
 
@@ -118,7 +118,7 @@ readAllNGrams
     -> ([NGrams], UniMap)  -- ^ all read n-grams for n = 1..max
                            --   and unigram mapping
 readAllNGrams ls nMax =
-    let ls' = drop (nMax + 2) ls
+    let ls'                       = drop (nMax + 2) ls
         (allNGrams, finalBuilder) = runState (go ls' 1 Map.empty)
             Builder {nextInt = 0, currMap = Bimap.empty}
     in (allNGrams, currMap finalBuilder)
