@@ -140,7 +140,7 @@ readAllNGrams ls nMax =
             let p  = logToLogFloat $ read pStr
                 w  = if nMaximal then xs else init xs
                 b' = logToLogFloat $ read $ last xs
-                b  = if nMaximal then Nothing else Just b'
+                b  = if nMaximal then Nothing else b' `seq` Just b'
             ngram <- lookupInsert w
             ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 
@@ -161,5 +161,5 @@ readAllNGrams ls nMax =
                 next'    = if isNothing maybeVal
                            then next + 1
                            else next
-            put Builder {nextInt = next', currMap = mapping'}
+            next' `seq` mapping' `seq` put Builder {nextInt = next', currMap = mapping'}
             return $ fromMaybe next maybeVal
