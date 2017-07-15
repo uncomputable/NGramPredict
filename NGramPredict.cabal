@@ -35,4 +35,3 @@ executable NGramPredict
   default-language:    Haskell2010
   ghc-options:         -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind -O
   ghc-prof-options:    -rtsopts -fprof-auto
-  default-extensions:  BangPatterns
