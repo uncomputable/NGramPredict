@@ -4,9 +4,11 @@ module FileIO (getPrefix, readModel) where
 import Model
 import Control.Monad.State.Lazy
 import qualified Data.Bimap as Bimap
+import Data.Char (isSpace)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromJust, fromMaybe, isNothing)
+import Data.Number.LogFloat (logToLogFloat)
 import System.IO.Error
 
 -- | Reads a prefix from a text file and returns it. The maximum length of
@@ -21,48 +23,48 @@ getPrefix
 getPrefix textPath model line col = try `catchIOError` handler
     where
         try :: IO [String]
-        try =
-            if line <= 0 || col <= 0
-            then error $ "<line> and <column> must be greater than zero. "
+        try = do
+            content <- readFile textPath
+            case go content of
+               Left err     -> error err
+               Right prefix -> return prefix
+
+        go :: String -> Either String [String]
+        go content = do
+            when (line <= 0 || col <= 0) $
+                Left $ "<line> and <column> must be greater than zero. "
                 ++ "Please choose larger values."
-            else do
-                content <- readFile textPath
-                let textLines = lines content
-                    maybeFoundLine = textLines ?!! (line - 1)
-                    foundLine = fromMaybe (error ("<line> is larger than the "
-                                ++ "line count of the file! Please choose a "
-                                ++ "smaller value")) maybeFoundLine
-                    maxLen    = headerNMax (modelHeader model) - 1
-                    lineFront = words $ fst $ splitAt col foundLine
-                _ <- detectLineErrors foundLine lineFront
-                return $ lastN maxLen lineFront
+
+            let textLines      = lines content
+                maybeFoundLine = textLines ?!! (line - 1)
+                maybePrevLine  = textLines ?!! (line - 2)
+                maxLen         = headerNMax (modelHeader model) - 1
+
+            when (isNothing maybeFoundLine) $
+                Left $ "<line> is larger than the line count of the file! "
+                ++ "Please choose a smaller value."
+
+            let foundLine  = fromJust maybeFoundLine
+                prevLine   = maybe [] words maybePrevLine
+                lineFront' = prevLine ++ words (fst $ splitAt col foundLine)
+                lineFront  = if isSpace $ foundLine !! (col - 1)
+                             then lineFront'
+                             else init lineFront'
+
+            when (length foundLine < col) $
+                Left $ "The line in the text file is shorter than <column>! "
+                ++ "Maybe <column> is too large or <line> contains an error."
+
+            return $ lastN maxLen lineFront
 
         (?!!) :: [a] -> Int -> Maybe a
         (?!!) [] _ = Nothing
         (?!!) (x : xs) n
-            | n == 0 = Just x
+            | n == 0    = Just x
             | otherwise = (?!!) xs (n - 1)
 
         lastN :: Int -> [a] -> [a]
         lastN n xs = drop (length xs - n) xs
-
-        detectLineErrors :: String -> [String] -> IO [a]
-        detectLineErrors foundLine lineFront
-            | length foundLine < col = error $ "The line in the text file is "
-                ++ "shorter than <column>! Maybe <column> is too large or "
-                ++ "<line> contains an error."
-            | invalidDelimiter $ foundLine !! (col - 1) = error
-                $ "Failed to extract the prefix, because <column> is "
-                ++ "pointing to a non-whitespace character!"
-            | length lineFront == 0 = error
-                $ "There isn't a single word in front of <column>! Maybe "
-                ++ "<column> is too small or <line> contains an error."
-            | otherwise = return []
-
-        invalidDelimiter :: Char -> Bool
-        invalidDelimiter c
-            | c == ' ' || c == '\t' = False
-            | otherwise = True
 
 
 -- | Reads the entire model from an ARPA file.
@@ -74,8 +76,8 @@ readModel modelPath = try `catchIOError` handler
         try :: IO Model
         try = do
             content <- readFile modelPath
-            let ls     = lines content
-                header = readHeader ls
+            let ls                   = lines content
+                header               = readHeader ls
                 (allNGrams, mapping) = readAllNGrams ls $ headerNMax header
             return $ Model header allNGrams mapping
 
@@ -116,49 +118,40 @@ readAllNGrams
     -> ([NGrams], UniMap)  -- ^ all read n-grams for n = 1..max
                            --   and unigram mapping
 readAllNGrams ls nMax =
-    let ls' = drop (nMax + 2) ls
+    let ls'                       = drop (nMax + 2) ls
         (allNGrams, finalBuilder) = runState (go ls' 1 Map.empty)
             Builder {nextInt = 0, currMap = Bimap.empty}
     in (allNGrams, currMap finalBuilder)
     where
         go :: [String] -> Int -> NGrams -> State MapBuilder [NGrams]
         go [] _ ngrams = return [ngrams]
-        go (line : rest) n ngrams = do
-            let ws = words line
-            case ws of
+        go (line : rest) n ngrams =
+            case words line of
                 []  -> do otherNGrams <- go rest (n + 1) Map.empty
                           otherNGrams `seq` return $ ngrams : otherNGrams
                 [_] -> go rest n ngrams
-                _   -> do (ngram, prob) <- if n == nMax
-                                           then parseMaxNGram ws
-                                           else parseNGram ws
+                ws  -> do (ngram, prob) <- parseNGram ws $ n == nMax
                           let ngrams' = Map.insert ngram prob ngrams
                           ngrams' `seq` go rest n ngrams'
 
-        parseNGram :: [String] -> State MapBuilder ([Integer], Prob)
-        parseNGram [] = undefined
-        parseNGram (pStr : xs) = do
-            let p = read pStr
-                w = init xs
-                b = read $ last xs
+        parseNGram :: [String] -> Bool -> State MapBuilder ([Int], Prob)
+        parseNGram [] _ = undefined
+        parseNGram (pStr : xs) nMaximal = do
+            let p  = logToLogFloat $ read pStr
+                w  = if nMaximal then xs else init xs
+                b' = logToLogFloat $ read $ last xs
+                b  = if nMaximal then Nothing else b' `seq` Just b'
             ngram <- lookupInsert w
             ngram `seq` p `seq` b `seq` return (ngram, Prob p b)
 
-        parseMaxNGram :: [String] -> State MapBuilder ([Integer], Prob)
-        parseMaxNGram [] = undefined
-        parseMaxNGram (pStr : xs) = do
-            let p = read pStr
-            ngram <- lookupInsert xs
-            ngram `seq` p `seq` return (ngram, ProbMax p)
-
-        lookupInsert :: [String] -> State MapBuilder [Integer]
+        lookupInsert :: [String] -> State MapBuilder [Int]
         lookupInsert [] = return []
         lookupInsert (w : ws) = do
             int <- lookupInsert' w
             otherInts <- lookupInsert ws
             int `seq` return $ int : otherInts
 
-        lookupInsert' :: String -> State MapBuilder Integer
+        lookupInsert' :: String -> State MapBuilder Int
         lookupInsert' w = do
             Builder {nextInt = next, currMap = mapping} <- get
             let maybeVal = Bimap.lookup w mapping
@@ -168,5 +161,5 @@ readAllNGrams ls nMax =
                 next'    = if isNothing maybeVal
                            then next + 1
                            else next
-            put Builder {nextInt = next', currMap = mapping'}
+            next' `seq` mapping' `seq` put Builder {nextInt = next', currMap = mapping'}
             return $ fromMaybe next maybeVal

@@ -1,9 +1,10 @@
 -- | Defines data structures for the n-gram model and corresponding, useful
 -- functions.
-module Model (module Model) where
+module Model where
 
-import qualified Data.Bimap as Bimap
-import qualified Data.Map as Map
+import qualified Data.Bimap as Bimap (Bimap)
+import qualified Data.Map as Map (Map)
+import Data.Number.LogFloat (LogFloat)
 
 -- | Header of the model file containing meta information.
 data Header = Header
@@ -11,30 +12,26 @@ data Header = Header
     , headerNums :: [Int]  -- ^ numbers of n-grams for each n
     } deriving Show
 
--- | Probability of an n-gram and its backoff weight (unless n = nMax)
-data Prob
-    = Prob
-    { problty :: Double  -- ^ probability
-    , backoff :: Double  -- ^ backoff weight
-    }
-    | ProbMax
-    { problty :: Double  -- ^ probability
+-- | Probability of an n-gram and its backoff weight.
+data Prob = Prob
+    { probability :: LogFloat    -- ^ probability
+    , backoff :: Maybe LogFloat  -- ^ backoff weight, unless n is maximal
     } deriving Show
 
 -- | Maps n-grams for a fixed n (that have been encoded as integers)
 -- to their probabilities (and backoff weights).
 type NGrams
-    = Map.Map [Integer] Prob  -- ^ (converted n-gram) -\> probability
+    = Map.Map [Int] Prob  -- ^ (converted n-gram) -\> probability
 
 -- | Data structure for building a UniMap structure.
 data MapBuilder = Builder
-      { nextInt :: Integer  -- ^ next integer to use
-      , currMap :: UniMap   -- ^ current mapping
+      { nextInt :: Int     -- ^ next integer to use
+      , currMap :: UniMap  -- ^ current mapping
       } deriving Show
 
 -- | Bijective mapping of unigrams to their integer representation / encoding.
 type UniMap =
-    Bimap.Bimap String Integer  -- ^ mapping: unigram \<-\> integer
+    Bimap.Bimap String Int  -- ^ mapping: unigram \<-\> integer
 
 -- | Combines header, n-grams and integer mapping.
 data Model = Model
