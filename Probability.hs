@@ -23,11 +23,17 @@ predict n prefix model =
     where
         go :: [Int] -> [Int]
         go encPrefix =
-            let allNGrams = modelNGrams model
-                uniGrams  = Map.keys $ head allNGrams
-                uniMap    = modelUniMap model
-                uniProbs  =
-                    map (\[u] -> (computeProb u encPrefix allNGrams uniMap, u)) uniGrams
+            let allNGrams    = modelNGrams model
+                uniGrams     = Map.keys $ head allNGrams
+                maybeUnkProb = Bimap.lookup "<unk>" (modelUniMap model)
+                                >>= Just . return
+                                >>= (`Map.lookup` head allNGrams)
+                                >>= Just . probability
+                unkProb      = fromMaybe (logFloat 0) maybeUnkProb
+                             -- if <unk> is contained in the model, its
+                             -- probability is used; otherwise 0 is used
+                uniProbs     =
+                    map (\[u] -> (computeProb u encPrefix allNGrams unkProb, u)) uniGrams
                       --  ^^^ non-exhaustive pattern matching?
             in map snd $ take n $ sortBy (flip compare) uniProbs
 
@@ -38,26 +44,20 @@ computeProb
     :: Int       -- ^ word w_i following prefix (encoded)
     -> [Int]     -- ^ prefix p (encoded)
     -> [NGrams]  -- ^ list of maps of n-grams
-    -> UniMap    -- ^ mapping of unigrams to integers
+    -> LogFloat  -- ^ default probability for unknown values
     -> LogFloat  -- ^ probability (w_i | p)
-computeProb w_i fullPrefix allNGrams uniMap =
-    let maybeUnkProb = Bimap.lookup "<unk>" uniMap >>= Just . return
-                        >>= (`Map.lookup` head allNGrams) >>= Just . probability
-        unkWeight    = fromMaybe (logFloat 0) maybeUnkProb
-                     -- if <unk> is contained in the model, its probability
-                     -- is used; otherwise 0 is used
-    in go (fullPrefix ++ [w_i]) unkWeight
+computeProb w_i fullPrefix allNGrams unk = go (fullPrefix ++ [w_i])
     where
-        go :: [Int] -> LogFloat -> LogFloat
-        go ngram unk = let maybeProb = getProb ngram
-                       in maybe (goBackoff ngram unk) probability maybeProb
+        go :: [Int] -> LogFloat
+        go ngram = let maybeProb = getProb ngram
+                   in maybe (goBackoff ngram) probability maybeProb
 
-        goBackoff :: [Int] -> LogFloat -> LogFloat
-        goBackoff [] unk = unk -- unigram w_i was not in model at all!
-        goBackoff (_ : shorter) unk = let maybeProb = getProb shorter
-                                          weight    = fromJust
-                                            $ maybe (Just unk) backoff maybeProb
-                                      in weight * go shorter unk
+        goBackoff :: [Int] -> LogFloat
+        goBackoff [] = unk -- unigram w_i was not in model at all!
+        goBackoff (_ : shorter) = let maybeProb = getProb shorter
+                                      weight    = fromJust
+                                        $ maybe (Just unk) backoff maybeProb
+                                  in weight * go shorter
 
         getProb :: [Int] -> Maybe Prob
         getProb ngram = let probs = map (Map.lookup ngram) allNGrams
